@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="/src/style.css"/>
 </head>
 
-<body class="min-h-screen p-6" x-data="spyApp()">
+<body class="min-h-screen p-6" x-data="appModel()">
 <div class="max-w-4xl mx-auto bg-white p-6 rounded-xl shadow-md">
     <h1 class="text-2xl font-bold mb-4">Ranked War Matchmaker</h1>
 
@@ -102,42 +102,10 @@
 
 <!-- Define spyApp BEFORE Alpine starts -->
 <script type="module">
-    import {parseSpyText, parseNumber, formatNumber} from './src/spy_parser.js'
-
-    window.spyApp = () => ({
-        input: '',
-        spies: [],
-        parse() {
-            this.spies = parseSpyText(this.input)
-        },
-        clear() {
-            this.input = ''
-            this.spies = []
-        },
-        formatTotal(spy) {
-            const s = parseNumber(spy.speed)
-            const st = parseNumber(spy.strength)
-            const d = parseNumber(spy.defense)
-            const dx = parseNumber(spy.dexterity)
-
-            return (s != null && st != null && d != null && dx != null)
-                ? formatNumber(s + st + d + dx)
-                : 'N/A'
-        },
-        isInvalid(value) {
-            const parsed = parseNumber(value);
-            return parsed == null;
-        },
-        hasInvalidStats() {
-            return this.spies.some(spy =>
-                this.isInvalid(spy.speed) ||
-                this.isInvalid(spy.strength) ||
-                this.isInvalid(spy.defense) ||
-                this.isInvalid(spy.dexterity)
-            );
-        }
-    })
+    import { newAppModel } from './src/app_model.js'
+    window.appModel = newAppModel
 </script>
+
 
 <!-- Load and start Alpine AFTER spyApp is defined -->
 <script type="module">
