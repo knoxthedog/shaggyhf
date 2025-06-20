@@ -42,8 +42,7 @@ Total: 36,004
       speed: 'N/A',
       strength: '100',
       defense: '200',
-      dexterity: 'N/A',
-      total: 'N/A',
+      dexterity: 'N/A'
     },
     {
       name: 'JackieChan',
@@ -51,8 +50,7 @@ Total: 36,004
       speed: '9,000',
       strength: '9,000',
       defense: '9,000',
-      dexterity: '9,000',
-      total: 'N/A',
+      dexterity: '9,000'
     },
     {
       name: 'BruceLee',
@@ -60,8 +58,7 @@ Total: 36,004
       speed: '9,001',
       strength: '9,001',
       defense: '9,001',
-      dexterity: '9,001',
-      total: '36,004',
+      dexterity: '9,001'
     },
   ]);
 });

@@ -1,8 +1,8 @@
 export function parseSpyText(text) {
   const blocks = text
-    .split(/(?=^\s*Name:)/gim)
-    .map(b => b.trim())
-    .filter(Boolean);
+      .split(/(?=^\s*Name:)/gim)
+      .map(b => b.trim())
+      .filter(Boolean);
 
   const get = (block, label) => {
     const match = new RegExp(`${label}:\\s*(.*)`, 'i').exec(block);
@@ -21,12 +21,13 @@ export function parseSpyText(text) {
       strength: get(block, 'Strength'),
       defense: get(block, 'Defense'),
       dexterity: get(block, 'Dexterity'),
-      total: get(block, 'Total'),
+      // total is no longer returned — calculated in UI only
     };
   });
 }
 
 export function parseNumber(str) {
+  if (typeof str !== 'string') return null;
   const clean = str.replace(/,/g, '');
   const n = parseInt(clean, 10);
   return isNaN(n) ? null : n;
