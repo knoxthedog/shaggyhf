@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Spy Report Parser</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+</head>
+<body class="bg-gray-100 min-h-screen p-6" x-data="spyParserApp()">
+  <div class="max-w-4xl mx-auto bg-white p-6 rounded-xl shadow-md">
+    <h1 class="text-2xl font-bold mb-4">Spy Report Parser</h1>
+
+    <textarea
+      x-model="rawInput"
+      class="w-full h-48 p-3 border rounded resize-none mb-4"
+      placeholder="Paste spy reports here..."
+    ></textarea>
+
+    <div class="flex gap-4 mb-4">
+      <button @click="parseSpies" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+        Parse
+      </button>
+      <button @click="clear" class="bg-gray-300 text-gray-800 px-4 py-2 rounded hover:bg-gray-400">
+        Clear
+      </button>
+    </div>
+
+    <template x-if="spies.length">
+      <div class="overflow-x-auto">
+        <table class="table-auto w-full border border-gray-300 text-sm">
+          <thead class="bg-gray-200">
+            <tr>
+              <th class="border p-2">Name</th>
+              <th class="border p-2">Level</th>
+              <th class="border p-2">Speed</th>
+              <th class="border p-2">Strength</th>
+              <th class="border p-2">Defense</th>
+              <th class="border p-2">Dexterity</th>
+              <th class="border p-2">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            <template x-for="(spy, index) in spies" :key="index">
+              <tr>
+                <td class="border p-2"><input x-model="spy.name" class="w-full border rounded p-1" /></td>
+                <td class="border p-2"><input x-model="spy.level" class="w-full border rounded p-1" /></td>
+                <td class="border p-2"><input x-model="spy.speed" class="w-full border rounded p-1" /></td>
+                <td class="border p-2"><input x-model="spy.strength" class="w-full border rounded p-1" /></td>
+                <td class="border p-2"><input x-model="spy.defense" class="w-full border rounded p-1" /></td>
+                <td class="border p-2"><input x-model="spy.dexterity" class="w-full border rounded p-1" /></td>
+                <td class="border p-2"><input x-model="spy.total" class="w-full border rounded p-1" /></td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
+    </template>
+  </div>
+
+  <script>
+    function spyParserApp() {
+      return {
+        rawInput: '',
+        spies: [],
+
+        parseSpies() {
+          const blocks = this.rawInput
+            .split(/=+\s*\n?/g)
+            .map(b => b.trim())
+            .filter(Boolean);
+
+          this.spies = blocks.map(block => {
+            const get = (label) => {
+              const match = new RegExp(`${label}:\\s*(.*)`).exec(block);
+              return match ? match[1].trim() : '';
+            };
+
+            const nameLine = get('Name');
+            const nameMatch = /(.*)\s\[(\d+)\]/.exec(nameLine);
+            const name = nameMatch ? nameMatch[1] : nameLine;
+
+            return {
+              name,
+              level: get('Level'),
+              speed: get('Speed'),
+              strength: get('Strength'),
+              defense: get('Defense'),
+              dexterity: get('Dexterity'),
+              total: get('Total'),
+            };
+          });
+        },
+
+        clear() {
+          this.rawInput = '';
+          this.spies = [];
+        }
+      };
+    }
+  </script>
+</body>
+</html>
