@@ -12,7 +12,7 @@ Defense: 200
 Dexterity: N/A
 Total: N/A
 
-Name: JackieChan [9000]
+  name: JackieChan [9000]
 Level: 100
 
 You managed to get the following results:
