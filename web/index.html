@@ -9,7 +9,7 @@
 
 <body class="min-h-screen p-6" x-data="spyApp()">
 <div class="max-w-4xl mx-auto bg-white p-6 rounded-xl shadow-md">
-    <h1 class="text-2xl font-bold mb-4">Spy Report Parser</h1>
+    <h1 class="text-2xl font-bold mb-4">Ranked War Matchmaker</h1>
 
     <textarea
             x-model="input"
@@ -34,6 +34,11 @@
 
     <template x-if="spies.length">
         <div class="overflow-x-auto">
+            <template x-if="hasInvalidStats()">
+                <div class="mb-4 p-3 rounded border border-yellow-400 bg-yellow-100 text-yellow-900 text-sm">
+                    ⚠️ Targets with missing or invalid battle stat values will not be matched.
+                </div>
+            </template>
             <table class="table-auto w-full border border-gray-300 text-sm">
                 <thead class="bg-gray-200">
                 <tr>
@@ -51,10 +56,35 @@
                     <tr>
                         <td class="border p-2"><input x-model="spy.name" class="w-full border rounded p-1"/></td>
                         <td class="border p-2"><input x-model="spy.level" class="w-full border rounded p-1"/></td>
-                        <td class="border p-2"><input x-model="spy.speed" class="w-full border rounded p-1"/></td>
-                        <td class="border p-2"><input x-model="spy.strength" class="w-full border rounded p-1"/></td>
-                        <td class="border p-2"><input x-model="spy.defense" class="w-full border rounded p-1"/></td>
-                        <td class="border p-2"><input x-model="spy.dexterity" class="w-full border rounded p-1"/></td>
+                        <td class="border p-2">
+                            <input
+                                    x-model="spy.speed"
+                                    :class="isInvalid(spy.speed) ? 'border-red-500 bg-red-50' : 'border-gray-300'"
+                                    class="w-full border rounded p-1"
+                            />
+                        </td>
+                        <td class="border p-2">
+                            <input
+                                    x-model="spy.strength"
+                                    :class="isInvalid(spy.strength) ? 'border-red-500 bg-red-50' : 'border-gray-300'"
+                                    class="w-full border rounded p-1"
+                            />
+                        </td>
+                        <td class="border p-2">
+                            <input
+                                    x-model="spy.defense"
+                                    :class="isInvalid(spy.defense) ? 'border-red-500 bg-red-50' : 'border-gray-300'"
+                                    class="w-full border rounded p-1"
+                            />
+                        </td>
+                        <td class="border p-2">
+                            <input
+                                    x-model="spy.dexterity"
+                                    :class="isInvalid(spy.dexterity) ? 'border-red-500 bg-red-50' : 'border-gray-300'"
+                                    class="w-full border rounded p-1"
+                            />
+                        </td>
+
                         <td class="border p-2">
                             <input
                                     class="w-full border rounded p-1 bg-gray-100 text-gray-700"
@@ -93,6 +123,18 @@
             return (s != null && st != null && d != null && dx != null)
                 ? formatNumber(s + st + d + dx)
                 : 'N/A'
+        },
+        isInvalid(value) {
+            const parsed = parseNumber(value);
+            return parsed == null;
+        },
+        hasInvalidStats() {
+            return this.spies.some(spy =>
+                this.isInvalid(spy.speed) ||
+                this.isInvalid(spy.strength) ||
+                this.isInvalid(spy.defense) ||
+                this.isInvalid(spy.dexterity)
+            );
         }
     })
 </script>
