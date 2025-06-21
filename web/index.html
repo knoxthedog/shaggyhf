@@ -70,8 +70,7 @@
             <label class="block mb-2 font-medium">TornStats API Key</label>
             <input x-model="apiKey" x-debounced-persist type="text" class="w-full border rounded p-2 mb-4" placeholder="Paste your TornStats API key here" />
 
-            <!-- TODO: enable this when TornStats API is ready -->
-            <button @click="fetchFactionStats" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+            <button @click="fetchFactionStats" :disabled="!hasValidAPIKey()" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 disabled:opacity-50">
                 Fetch Faction Stats
             </button>
 

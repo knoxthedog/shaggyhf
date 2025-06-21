@@ -111,6 +111,10 @@ export function newAppModel() {
             return false;
         },
 
+        hasValidAPIKey() {
+            return this.apiKey && this.apiKey.trim().length > 0;
+        },
+
         async fetchFactionStats() {
             if (!this.apiKey) return;
 
