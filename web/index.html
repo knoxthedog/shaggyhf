@@ -7,12 +7,13 @@
     <link rel="stylesheet" href="/src/style.css"/>
 </head>
 
-<body class="min-h-screen p-6" x-data="appModel()">
+<body class="min-h-screen p-6" x-data="appModel()" x-init="init()">
 <div class="max-w-4xl mx-auto bg-white p-6 rounded-xl shadow-md">
     <h1 class="text-2xl font-bold mb-4">Ranked War Matchmaker</h1>
 
     <textarea
             x-model="input"
+            x-debounced-persist
             class="w-full h-48 p-3 border rounded resize-none mb-4"
             placeholder="Paste spy reports here..."
     ></textarea>
@@ -54,32 +55,32 @@
                 <tbody>
                 <template x-for="(spy, i) in spies" :key="i">
                     <tr>
-                        <td class="border p-2"><input x-model="spy.name" class="w-full border rounded p-1"/></td>
-                        <td class="border p-2"><input x-model="spy.level" class="w-full border rounded p-1"/></td>
+                        <td class="border p-2"><input x-model="spy.name" x-debounced-persist class="w-full border rounded p-1"/></td>
+                        <td class="border p-2"><input x-model="spy.level" x-debounced-persist class="w-full border rounded p-1"/></td>
                         <td class="border p-2">
                             <input
-                                    x-model="spy.speed"
+                                    x-model="spy.speed" x-debounced-persist
                                     :class="isInvalid(spy.speed) ? 'border-red-500 bg-red-50' : 'border-gray-300'"
                                     class="w-full border rounded p-1"
                             />
                         </td>
                         <td class="border p-2">
                             <input
-                                    x-model="spy.strength"
+                                    x-model="spy.strength" x-debounced-persist
                                     :class="isInvalid(spy.strength) ? 'border-red-500 bg-red-50' : 'border-gray-300'"
                                     class="w-full border rounded p-1"
                             />
                         </td>
                         <td class="border p-2">
                             <input
-                                    x-model="spy.defense"
+                                    x-model="spy.defense" x-debounced-persist
                                     :class="isInvalid(spy.defense) ? 'border-red-500 bg-red-50' : 'border-gray-300'"
                                     class="w-full border rounded p-1"
                             />
                         </td>
                         <td class="border p-2">
                             <input
-                                    x-model="spy.dexterity"
+                                    x-model="spy.dexterity" x-debounced-persist
                                     :class="isInvalid(spy.dexterity) ? 'border-red-500 bg-red-50' : 'border-gray-300'"
                                     class="w-full border rounded p-1"
                             />
@@ -100,16 +101,24 @@
     </template>
 </div>
 
-<!-- Define spyApp BEFORE Alpine starts -->
+<!-- Define app model BEFORE Alpine starts -->
 <script type="module">
     import { newAppModel } from './src/app_model.js'
     window.appModel = newAppModel
 </script>
 
 
-<!-- Load and start Alpine AFTER spyApp is defined -->
+<!-- Load and start Alpine AFTER app model is defined -->
 <script type="module">
     import Alpine from 'alpinejs'
+
+    Alpine.directive('debounced-persist', (el, { expression }, { evaluate }) => {
+        el.addEventListener('input', () => {
+            // Evaluate 'debouncedPersist' in component scope
+            const fn = evaluate(expression || 'debouncedPersist');
+            fn?.();
+        });
+    });
 
     window.Alpine = Alpine
     Alpine.start()
