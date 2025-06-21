@@ -62,6 +62,10 @@ export function newAppModel() {
             localStorage.removeItem(STORAGE_KEY);
         },
 
+        hasInput() {
+            return this.input && this.input.trim().length > 0;
+        },
+
         isInvalid(value) {
             const parsed = parseNumber(value);
             return parsed == null;

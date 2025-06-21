@@ -22,7 +22,7 @@
             ></textarea>
 
             <div class="flex gap-4 mb-4">
-                <button @click="parse()" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Parse</button>
+                <button @click="parse()" :disabled="!hasInput()" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50">Read Spies</button>
                 <button @click="clear()" class="bg-gray-300 text-gray-800 px-4 py-2 rounded hover:bg-gray-400">Clear</button>
             </div>
 
