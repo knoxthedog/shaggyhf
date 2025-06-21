@@ -67,7 +67,13 @@
     <!-- Step 2: TornStats API Key -->
     <template x-if="step === 2">
         <div>
-            <label class="block mb-2 font-medium">TornStats API Key</label>
+            <label class="block mb-2 font-medium">
+                TornStats API Key
+                <a href="https://www.tornstats.com/settings/general" target="_blank" rel="noopener" class="ml-2 text-blue-600 hover:underline text-sm">
+                    (Where do I find this?)
+                </a>
+            </label>
+
             <input x-model="apiKey" x-debounced-persist type="text" class="w-full border rounded p-2 mb-4" placeholder="Paste your TornStats API key here" />
 
             <button @click="fetchFactionStats" :disabled="!hasValidAPIKey()" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 disabled:opacity-50">
