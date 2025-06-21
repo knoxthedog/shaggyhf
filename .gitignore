@@ -1,5 +1,5 @@
-# Created by https://www.toptal.com/developers/gitignore/api/go,jetbrains,node
-# Edit at https://www.toptal.com/developers/gitignore?templates=go,jetbrains,node
+# Created by https://www.toptal.com/developers/gitignore/api/go,node,jetbrains,macos
+# Edit at https://www.toptal.com/developers/gitignore?templates=go,node,jetbrains,macos
 
 ### Go ###
 # If you prefer the allow list template instead of the deny list, see community template:
@@ -136,6 +136,39 @@ fabric.properties
 # Azure Toolkit for IntelliJ plugin
 # https://plugins.jetbrains.com/plugin/8053-azure-toolkit-for-intellij
 .idea/**/azureSettings.xml
+
+### macOS ###
+# General
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Icon must end with two \r
+Icon
+
+
+# Thumbnails
+._*
+
+# Files that might appear in the root of a volume
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# Directories potentially created on remote AFP share
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+### macOS Patch ###
+# iCloud generated files
+*.icloud
 
 ### Node ###
 # Logs
@@ -277,4 +310,4 @@ dist
 # SvelteKit build / generate output
 .svelte-kit
 
-# End of https://www.toptal.com/developers/gitignore/api/go,jetbrains,node
+# End of https://www.toptal.com/developers/gitignore/api/go,node,jetbrains,macos
