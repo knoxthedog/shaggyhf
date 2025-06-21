@@ -28,9 +28,9 @@
 
             <template x-if="spies.length">
                 <div class="overflow-x-auto">
-                    <template x-if="hasInvalidStats()">
+                    <template x-if="hasInvalidStats(spies)">
                         <div class="mb-4 p-3 rounded border border-yellow-400 bg-yellow-100 text-yellow-900 text-sm">
-                            ⚠️ Targets with missing or invalid battle stat values will not be matched.
+                            ⚠️ Some targets have missing or invalid battle stat values. They will not be matched.
                         </div>
                     </template>
                     <table class="table-auto w-full border border-gray-300 text-sm">
@@ -75,7 +75,39 @@
             </button>
 
             <template x-if="fetchedMembers.length">
-                <p class="mt-4 text-sm text-green-700">Fetched {{ fetchedMembers.length }} faction members</p>
+                <div class="overflow-x-auto mt-6">
+                    <template x-if="hasInvalidStats(fetchedMembers)">
+                        <div class="mb-4 p-3 rounded border border-yellow-400 bg-yellow-100 text-yellow-900 text-sm">
+                            ⚠️ Some members have missing battle stat values. They will not be matched.
+                        </div>
+                    </template>
+                    <table class="table-auto w-full border border-gray-300 text-sm">
+                        <thead class="bg-gray-200">
+                        <tr>
+                            <th class="border p-2">Name</th>
+                            <th class="border p-2">Level</th>
+                            <th class="border p-2">Speed</th>
+                            <th class="border p-2">Strength</th>
+                            <th class="border p-2">Defense</th>
+                            <th class="border p-2">Dexterity</th>
+                            <th class="border p-2">Total</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <template x-for="(member, i) in fetchedMembers" :key="i">
+                            <tr :class="hasInvalidStats([member]) ? 'bg-red-50' : ''" >
+                                <td class="border p-2" x-text="member.name"></td>
+                                <td class="border p-2" x-text="member.level"></td>
+                                <td class="border p-2" x-text="member.speed"></td>
+                                <td class="border p-2" x-text="member.strength"></td>
+                                <td class="border p-2" x-text="member.defense"></td>
+                                <td class="border p-2" x-text="member.dexterity"></td>
+                                <td class="border p-2" x-text="formatTotal(member)"></td>
+                            </tr>
+                        </template>
+                        </tbody>
+                    </table>
+                </div>
             </template>
         </div>
     </template>

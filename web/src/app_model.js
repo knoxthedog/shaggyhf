@@ -56,8 +56,8 @@ export function newAppModel() {
             return parsed == null;
         },
 
-        hasInvalidStats() {
-            return this.spies.some(spy =>
+        hasInvalidStats(spies) {
+            return spies.some(spy =>
                 this.isInvalid(spy.speed) ||
                 this.isInvalid(spy.strength) ||
                 this.isInvalid(spy.defense) ||
@@ -92,17 +92,10 @@ export function newAppModel() {
 
         canProceed() {
             if (this.step === 1) {
-                return this.spies.some(spy => {
-                    const s = parseNumber(spy.speed);
-                    const st = parseNumber(spy.strength);
-                    const d = parseNumber(spy.defense);
-                    const dx = parseNumber(spy.dexterity);
-                    return s != null && st != null && d != null && dx != null;
-                });
+                return validSpyExists(this.spies);
             }
             if (this.step === 2) {
-                // Future condition for step 2
-                return false;
+                return validSpyExists(this.fetchedMembers);
             }
             return false;
         },
@@ -116,8 +109,8 @@ export function newAppModel() {
             try {
                 const res = await fetch(`https://www.tornstats.com/api/v2/${this.apiKey}/spy/faction/${FACTION_ID}`)
                 const json = await res.json();
-                if (json && json.faction && json.faction.members) {
-                    this.fetchedMembers = Object.values(json.faction.members);
+                if (json) {
+                    this.fetchedMembers = getSpiesFromFaction(json.faction || {});
                     this.persist();
                 } else {
                     alert("Invalid response from TornStats");
@@ -136,4 +129,30 @@ function debounce(fn, delay) {
         clearTimeout(timeout);
         timeout = setTimeout(() => fn(...args), delay);
     };
+}
+
+// Extract spies from faction data in the same format as parseSpyText
+export function getSpiesFromFaction(faction) {
+    let members = Object.values(faction.members || {});
+    return members.map(member => {
+        const spy = member.spy || {};
+        return {
+            name: member.name,
+            level: member.level + '',
+            speed: formatNumber(spy.speed ?? null),
+            strength: formatNumber(spy.strength ?? null),
+            defense: formatNumber(spy.defense ?? null),
+            dexterity: formatNumber(spy.dexterity ?? null),
+        };
+    });
+}
+
+function validSpyExists(spies) {
+    return spies.some(spy => {
+        const s = parseNumber(spy.speed);
+        const st = parseNumber(spy.strength);
+        const d = parseNumber(spy.defense);
+        const dx = parseNumber(spy.dexterity);
+        return s != null && st != null && d != null && dx != null;
+    });
 }

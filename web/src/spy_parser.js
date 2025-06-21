@@ -26,13 +26,20 @@ export function parseSpyText(text) {
   });
 }
 
-export function parseNumber(str) {
-  if (typeof str !== 'string') return null;
-  const clean = str.replace(/,/g, '');
-  const n = parseInt(clean, 10);
-  return isNaN(n) ? null : n;
+export function parseNumber(input) { // TODO move this to a separate utility file
+  if (typeof input === 'number') {
+    return isNaN(input) ? null : input;
+  }
+
+  if (typeof input === 'string') {
+    const clean = input.replace(/,/g, '');
+    const n = parseInt(clean, 10);
+    return isNaN(n) ? null : n;
+  }
+
+  return null;
 }
 
-export function formatNumber(n) {
+export function formatNumber(n) { // TODO move this to a separate utility file
   return n == null ? 'N/A' : n.toLocaleString();
 }
