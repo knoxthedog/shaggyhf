@@ -1,4 +1,5 @@
 import { parseSpyText, parseNumber, formatNumber } from './spy_parser.js';
+import { makeMatches } from './target_matcher.js';
 
 const STORAGE_KEY = 'spyAppState';
 const FACTION_ID = 49297; // Shaggy Hi-Fidelity
@@ -16,6 +17,9 @@ export function newAppModel() {
         isFetchingMembers: false,
         fetchMembersError: null,
         fetchMembersErrorDetail: null,
+
+        // Matchup Report state
+        matches: [],
 
         // Application state
         step: 1,
@@ -80,6 +84,12 @@ export function newAppModel() {
             );
         },
 
+        isValidStats(target) {
+            return !['speed', 'strength', 'defense', 'dexterity'].some(stat =>
+                this.isInvalid(target[stat])
+            );
+        },
+
         formatTotal(spy) {
             const s = parseNumber(spy.speed);
             const st = parseNumber(spy.strength);
@@ -94,6 +104,9 @@ export function newAppModel() {
         nextStep() {
             if (this.step < 3 && this.canProceed()) {
                 this.step++;
+                if (this.step === 3) {
+                    this.computeMatches();
+                }
                 this.persist();
             }
         },
@@ -142,6 +155,13 @@ export function newAppModel() {
                 this.isFetchingMembers = false;
             }
         },
+
+        computeMatches() {
+            const validSpies = this.spies.filter(s => this.isValidStats(s));
+            const validTargets = this.fetchedMembers.filter(m => this.isValidStats(m));
+            this.matches = makeMatches(validSpies, validTargets);
+        },
+
     };
 }
 
