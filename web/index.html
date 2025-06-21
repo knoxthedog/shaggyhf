@@ -70,9 +70,28 @@
             <label class="block mb-2 font-medium">TornStats API Key</label>
             <input x-model="apiKey" x-debounced-persist type="text" class="w-full border rounded p-2 mb-4" placeholder="Paste your TornStats API key here" />
 
+            <!-- TODO: enable this when TornStats API is ready -->
             <button @click="fetchFactionStats" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
                 Fetch Faction Stats
             </button>
+
+            <div class="mt-2 text-sm text-gray-600" x-show="isFetchingMembers">
+                <span class="animate-spin inline-block w-4 h-4 border-2 border-gray-300 border-t-transparent rounded-full mr-2"></span>
+                Fetching faction stats...
+            </div>
+
+            <template x-if="fetchMembersError">
+                <div class="mt-2 p-3 rounded border border-red-400 bg-red-100 text-red-800 text-sm">
+                    ❌ <div x-text="fetchMembersError"></div>
+                    <div class="text-xs text-red-700 mt-1" x-text="fetchMembersErrorDetail"></div>
+                </div>
+            </template>
+
+            <template x-if="lastFetchedMembers && !isFetchingMembers">
+                <div class="mt-2 text-sm text-gray-600">
+                    ✅ Last updated: <span x-text="lastFetchedMembers.toLocaleString()"></span>
+                </div>
+            </template>
 
             <template x-if="fetchedMembers.length">
                 <div class="overflow-x-auto mt-6">

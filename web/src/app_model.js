@@ -5,10 +5,19 @@ const FACTION_ID = 49297; // Shaggy Hi-Fidelity
 
 export function newAppModel() {
     return {
+        // Spy Parser state
         input: '',
         spies: [],
+
+        // Faction Stats state
         apiKey: '',
         fetchedMembers: [],
+        lastFetchedMembers: null,
+        isFetchingMembers: false,
+        fetchMembersError: null,
+        fetchMembersErrorDetail: null,
+
+        // Application state
         step: 1,
         debouncedPersist: null,
 
@@ -22,6 +31,7 @@ export function newAppModel() {
                     this.apiKey = state.apiKey || '';
                     this.fetchedMembers = Array.isArray(state.fetchedMembers) ? state.fetchedMembers : [];
                     this.step = state.step || 1;
+                    this.lastFetchedMembers = state.lastFetchedMembers ? new Date(state.lastFetchedMembers) : null;
                 } catch (e) {
                     console.warn('Failed to load state:', e);
                 }
@@ -37,6 +47,7 @@ export function newAppModel() {
                 apiKey: this.apiKey,
                 fetchedMembers: this.fetchedMembers,
                 step: this.step,
+                lastFetchedMembers: this.lastFetchedMembers ? this.lastFetchedMembers.toISOString() : null,
             }));
         },
 
@@ -101,23 +112,26 @@ export function newAppModel() {
         },
 
         async fetchFactionStats() {
-            if (!this.apiKey) {
-                alert("API key required");
-                return;
-            }
+            if (!this.apiKey) return;
+
+            this.isFetchingMembers = true;
+            this.fetchedMembers = [];
+            this.fetchMembersError = null;
+            this.fetchMembersErrorDetail = null;
 
             try {
-                const res = await fetch(`https://www.tornstats.com/api/v2/${this.apiKey}/spy/faction/${FACTION_ID}`)
-                const json = await res.json();
-                if (json) {
-                    this.fetchedMembers = getSpiesFromFaction(json.faction || {});
-                    this.persist();
-                } else {
-                    alert("Invalid response from TornStats");
-                }
-            } catch (err) {
-                console.error(err);
-                alert("Failed to fetch faction data");
+                const response = await fetch(`https://www.tornstats.com/api/v2/${this.apiKey}/spy/faction/${FACTION_ID}`)
+                const data = await response.json();
+
+                this.fetchedMembers = getSpiesFromFaction(data.faction || []);
+                this.lastFetchedMembers = new Date();
+                this.persist();
+            } catch (e) {
+                console.error("Fetch error:", e);
+                this.fetchMembersError = 'Failed to fetch faction stats. Please check your API key or try again later.';
+                this.fetchMembersErrorDetail = e?.message || String(e) || 'Unknown error';
+            } finally {
+                this.isFetchingMembers = false;
             }
         },
     };
