@@ -1,3 +1,5 @@
+import { parseNumber } from './spy_parser.js';
+
 /**
  * Calculate a target match score based on battle stats.
  *
@@ -23,6 +25,8 @@
  */
 export function evaluateMatchup(attacker, target) {
     function safeRatio(numerator, denominator) {
+        numerator = parseNumber(numerator);
+        denominator = parseNumber(denominator);
         if (!isFinite(numerator) || !isFinite(denominator)) return 1;
         if (denominator === 0) return numerator > 0 ? 10 : 1;
         return numerator / denominator;

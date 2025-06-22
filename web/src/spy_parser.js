@@ -21,12 +21,11 @@ export function parseSpyText(text) {
       strength: get(block, 'Strength'),
       defense: get(block, 'Defense'),
       dexterity: get(block, 'Dexterity'),
-      // total is no longer returned — calculated in UI only
     };
   });
 }
 
-export function parseNumber(input) { // TODO move this to a separate utility file
+export function parseNumber(input) {
   if (typeof input === 'number') {
     return isNaN(input) ? null : input;
   }
@@ -40,6 +39,6 @@ export function parseNumber(input) { // TODO move this to a separate utility fil
   return null;
 }
 
-export function formatNumber(n) { // TODO move this to a separate utility file
+export function formatNumber(n) {
   return n == null ? 'N/A' : n.toLocaleString();
 }
