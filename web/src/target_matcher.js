@@ -1,48 +1,28 @@
 import {getAllStatValues} from './spy_parser.js';
 
-export const MatchClass = Object.freeze({
-    OVERPOWERED: {
-        value: 2,
-        label: 'Overpowered',
-        emoji: '🧹',
-        color: 'green-700',
-    },
+export const MatchClass = {
+    IMPOSSIBLE: { label: 'Impossible', color: 'red-700', minScore: -Infinity },
+    HARD:       { label: 'Hard',       color: 'orange-700', minScore: -0.5 },
+    EVEN:       { label: 'Even',       color: 'yellow-700', minScore: -0.2 },
+    EASY:       { label: 'Easy',       color: 'green-700', minScore: 0.2 },
+    TRIVIAL:    { label: 'Trivial',    color: 'blue-700', minScore: 3 },
+};
 
-    FAVORED: {
-        value: 1,
-        label: 'Favored',
-        emoji: '🎯',
-        color: 'green-500',
-    },
-
-    EVEN: {
-        value: 0,
-        label: 'Even Match',
-        emoji: '⚖️',
-        color: 'yellow-500',
-    },
-
-    UNFAVORED: {
-        value: -1,
-        label: 'Unfavored',
-        emoji: '🟠',
-        color: 'orange-500',
-    },
-
-    OVERMATCHED: {
-        value: -2,
-        label: 'Overmatched',
-        emoji: '🔴',
-        color: 'red-600',
-    },
-});
+export function classifyMatchScore(score) {
+    if (score >= MatchClass.TRIVIAL.minScore) return MatchClass.TRIVIAL;
+    if (score >= MatchClass.EASY.minScore)    return MatchClass.EASY;
+    if (score >= MatchClass.EVEN.minScore)    return MatchClass.EVEN;
+    if (score >= MatchClass.HARD.minScore)    return MatchClass.HARD;
+    return MatchClass.IMPOSSIBLE;
+}
 
 /**
- * Compare two match classes by their numeric value.
+ * Compare two match classes by their ranks.
  * The return value is negative if a < b, zero if a == b, and positive if a > b.
  */
 export function compareMatchClass(a, b) {
-    return a.value - b.value;
+    const order = [MatchClass.IMPOSSIBLE, MatchClass.HARD, MatchClass.EVEN, MatchClass.EASY, MatchClass.TRIVIAL];
+    return order.indexOf(a) - order.indexOf(b);
 }
 
 /**
@@ -111,12 +91,14 @@ export function makeMatches(targets, attackers, minClass = MatchClass.EVEN) {
  *
  * - handles missing or invalid values (e.g. zero, NaN) to ensure stable math.
  * - applies log10 to stat ratios to approximate Torn’s diminishing returns curve.
- * - Final score is a weighted sum of four comparisons:
+ * - Stat ratio score is a weighted sum of four comparisons:
  *     - To-hit chance:     speed vs dexterity      (40%)
  *     - Damage potential:  strength vs defense      (40%)
  *     - Dodge chance:      dexterity vs speed       (10%)
  *     - Damage mitigation: defense vs strength      (10%)
- * - Weights favor offensive stats for the purpose of target  selection.
+ * - Weights favor offensive stats for the purpose of target selection.
+ * - Applies a penalty for total stat disparity because log10(attackerStat/targetStat)
+ *   normalizes away magnitude.
  */
 export function evaluateMatchup(attacker, target) {
     function safeRatio(numerator, denominator) {
@@ -129,22 +111,34 @@ export function evaluateMatchup(attacker, target) {
         return Math.log10(safeRatio(numerator, denominator));
     }
 
-    const score_hit = scoreRatio(attacker.speed, target.dexterity);   // to-hit chance
-    const score_str = scoreRatio(attacker.strength, target.defense);  // damage potential
-    const score_dodge = scoreRatio(attacker.dexterity, target.speed);   // evade chance
-    const score_def = scoreRatio(attacker.defense, target.strength);  // tankiness
+    const score_hit = scoreRatio(attacker.speed, target.dexterity);
+    const score_str = scoreRatio(attacker.strength, target.defense);
+    const score_dodge = scoreRatio(attacker.dexterity, target.speed);
+    const score_def = scoreRatio(attacker.defense, target.strength);
 
-    return 0.4 * score_hit +
+    const weightedScore =
+        0.4 * score_hit +
         0.4 * score_str +
         0.1 * score_dodge +
         0.1 * score_def;
-}
 
-export function classifyMatchScore(score) {
-    if (score >= 0.5) return MatchClass.OVERPOWERED;
-    if (score >= 0.2) return MatchClass.FAVORED;
-    if (score > -0.2) return MatchClass.EVEN;
-    if (score > -0.5) return MatchClass.UNFAVORED;
-    return MatchClass.OVERMATCHED;
+    // Apply penalty for total stat disparity
+    const totalAttacker = attacker.strength + attacker.defense + attacker.speed + attacker.dexterity;
+    const totalTarget = target.strength + target.defense + target.speed + target.dexterity;
+
+    const totalDisparityPenalty = Math.log10(safeRatio(totalTarget, totalAttacker)); // penalty if target has more total stats
+    const penaltyWeight = 1.25; // tunable: how harshly to punish low-total attackers
+
+    let finalScore =  weightedScore - penaltyWeight * totalDisparityPenalty;
+
+    // Apply “fail floor” penalty if key stat mismatch is extreme
+    const ratio_hit = safeRatio(attacker.speed, target.dexterity);
+    const ratio_str = safeRatio(attacker.strength, target.defense);
+    const FAIL_PENALTY = 5; // severe enough to drop to IMPOSSIBLE
+    if (ratio_hit < 0.1 || ratio_str < 0.1) {
+        finalScore -= FAIL_PENALTY;
+    }
+
+    return finalScore;
 }
 
