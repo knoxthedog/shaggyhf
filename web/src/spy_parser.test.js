@@ -4,7 +4,7 @@ import {
     getAllStatValues,
     getTotalStatsValue,
     getTotalStatsFormatted,
-    isValidSpy,
+    isCompleteSpy,
     StatNames,
     AllStatNames,
 } from './spy_parser.js';
@@ -109,7 +109,7 @@ describe('stat value helpers', () => {
     });
 
     it('isValidSpy returns true only if all stat values are valid', () => {
-        expect(isValidSpy(spy)).toBe(false);
+        expect(isCompleteSpy(spy)).toBe(false);
 
         const validSpy = {
             strength: '1000',
@@ -117,6 +117,6 @@ describe('stat value helpers', () => {
             speed: '3000',
             dexterity: '4000',
         };
-        expect(isValidSpy(validSpy)).toBe(true);
+        expect(isCompleteSpy(validSpy)).toBe(true);
     });
 });

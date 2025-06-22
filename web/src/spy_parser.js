@@ -69,6 +69,14 @@ export function getAllStatValues(spy) {
 }
 
 /**
+ * Check if the provided spy object has valid numeric values for all stats.
+ */
+export function isCompleteSpy(spy) {
+    return spy && typeof spy === 'object' &&
+        AllStatNames.every(stat => stat in spy && parseNumber(spy[stat]) != null);
+}
+
+/**
  * Calculate the total of all stats for a given spy and return its numeric value.
  * If any stat is non-numeric, it will be treated as zero.
  */
@@ -77,14 +85,6 @@ export function getTotalStatsValue(spy) {
     return Object.values(stats).reduce((total, value) => {
         return total + (value != null ? value : 0);
     }, 0);
-}
-
-/**
- * Check if the provided spy object has valid numeric values for all stats.
- */
-export function isValidSpy(spy) {
-    return spy && typeof spy === 'object' &&
-        AllStatNames.every(stat => stat in spy && parseNumber(spy[stat]) != null);
 }
 
 /**
@@ -114,4 +114,6 @@ function parseNumber(input) {
     return null;
 }
 
-
+export function formatNumber(n) {
+    return n == null ? 'N/A' : n.toLocaleString();
+}

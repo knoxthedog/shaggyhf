@@ -50,11 +50,11 @@
                             <tr>
                                 <td class="border p-2"><input x-model="spy.name" x-debounced-persist class="w-full border rounded p-1"/></td>
                                 <td class="border p-2"><input x-model="spy.level" x-debounced-persist class="w-full border rounded p-1"/></td>
-                                <td class="border p-2"><input x-model="spy.speed" x-debounced-persist :class="isInvalid(spy.speed) ? 'border-red-500 bg-red-50' : 'border-gray-300'" class="w-full border rounded p-1"/></td>
-                                <td class="border p-2"><input x-model="spy.strength" x-debounced-persist :class="isInvalid(spy.strength) ? 'border-red-500 bg-red-50' : 'border-gray-300'" class="w-full border rounded p-1"/></td>
-                                <td class="border p-2"><input x-model="spy.defense" x-debounced-persist :class="isInvalid(spy.defense) ? 'border-red-500 bg-red-50' : 'border-gray-300'" class="w-full border rounded p-1"/></td>
-                                <td class="border p-2"><input x-model="spy.dexterity" x-debounced-persist :class="isInvalid(spy.dexterity) ? 'border-red-500 bg-red-50' : 'border-gray-300'" class="w-full border rounded p-1"/></td>
-                                <td class="border p-2"><input class="w-full border rounded p-1 bg-gray-100 text-gray-700" :value="formatTotal(spy)" readonly/></td>
+                                <td class="border p-2"><input x-model="spy.speed" x-debounced-persist :class="isInvalidStat(spy, 'speed') ? 'border-red-500 bg-red-50' : 'border-gray-300'" class="w-full border rounded p-1"/></td>
+                                <td class="border p-2"><input x-model="spy.strength" x-debounced-persist :class="isInvalidStat(spy, 'strength') ? 'border-red-500 bg-red-50' : 'border-gray-300'" class="w-full border rounded p-1"/></td>
+                                <td class="border p-2"><input x-model="spy.defense" x-debounced-persist :class="isInvalidStat(spy, 'defense') ? 'border-red-500 bg-red-50' : 'border-gray-300'" class="w-full border rounded p-1"/></td>
+                                <td class="border p-2"><input x-model="spy.dexterity" x-debounced-persist :class="isInvalidStat(spy, 'dexterity') ? 'border-red-500 bg-red-50' : 'border-gray-300'" class="w-full border rounded p-1"/></td>
+                                <td class="border p-2"><input class="w-full border rounded p-1 bg-gray-100 text-gray-700" :value="formatStatTotal(spy)" readonly/></td>
                             </tr>
                         </template>
                         </tbody>
@@ -126,7 +126,7 @@
                                 <td class="border p-2" x-text="member.strength"></td>
                                 <td class="border p-2" x-text="member.defense"></td>
                                 <td class="border p-2" x-text="member.dexterity"></td>
-                                <td class="border p-2" x-text="formatTotal(member)"></td>
+                                <td class="border p-2" x-text="formatStatTotal(member)"></td>
                             </tr>
                         </template>
                         </tbody>
