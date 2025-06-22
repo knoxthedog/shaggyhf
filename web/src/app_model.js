@@ -1,4 +1,5 @@
-import { parseSpyText, parseNumber, formatNumber } from './spy_parser.js';
+import {parseSpyText, isCompleteSpy, formatNumber, getStatValue, getTotalStatsFormatted} from './spy_parser.js';
+import { makeMatches } from './target_matcher.js';
 
 const STORAGE_KEY = 'spyAppState';
 const FACTION_ID = 49297; // Shaggy Hi-Fidelity
@@ -17,6 +18,9 @@ export function newAppModel() {
         fetchMembersError: null,
         fetchMembersErrorDetail: null,
 
+        // Matchup Report state
+        matches: [],
+
         // Application state
         step: 1,
         debouncedPersist: null,
@@ -30,7 +34,7 @@ export function newAppModel() {
                     this.spies = Array.isArray(state.spies) ? state.spies : [];
                     this.apiKey = state.apiKey || '';
                     this.fetchedMembers = Array.isArray(state.fetchedMembers) ? state.fetchedMembers : [];
-                    this.step = state.step || 1;
+                    this.step = 1;
                     this.lastFetchedMembers = state.lastFetchedMembers ? new Date(state.lastFetchedMembers) : null;
                 } catch (e) {
                     console.warn('Failed to load state:', e);
@@ -46,54 +50,43 @@ export function newAppModel() {
                 spies: this.spies,
                 apiKey: this.apiKey,
                 fetchedMembers: this.fetchedMembers,
-                step: this.step,
                 lastFetchedMembers: this.lastFetchedMembers ? this.lastFetchedMembers.toISOString() : null,
             }));
         },
 
-        parse() {
+        parse() { // TODO rename to parseSpies
             this.spies = parseSpyText(this.input);
             this.persist();
         },
 
-        clear() {
+        clear() { // TODO rename to clearSpies
             this.input = '';
             this.spies = [];
             localStorage.removeItem(STORAGE_KEY);
         },
 
-        hasInput() {
+        hasInput() { // TODO rename to hasSpyInput
             return this.input && this.input.trim().length > 0;
         },
 
-        isInvalid(value) {
-            const parsed = parseNumber(value);
-            return parsed == null;
+        isInvalidStat(spy, statName) {
+            return getStatValue(spy, statName) === null;
         },
 
         hasInvalidStats(spies) {
-            return spies.some(spy =>
-                this.isInvalid(spy.speed) ||
-                this.isInvalid(spy.strength) ||
-                this.isInvalid(spy.defense) ||
-                this.isInvalid(spy.dexterity)
-            );
+            return spies.some(spy => !isCompleteSpy(spy));
         },
 
-        formatTotal(spy) {
-            const s = parseNumber(spy.speed);
-            const st = parseNumber(spy.strength);
-            const d = parseNumber(spy.defense);
-            const dx = parseNumber(spy.dexterity);
-
-            return (s != null && st != null && d != null && dx != null)
-                ? formatNumber(s + st + d + dx)
-                : 'N/A';
+        formatStatTotal(spy) {
+            return getTotalStatsFormatted(spy);
         },
 
         nextStep() {
             if (this.step < 3 && this.canProceed()) {
                 this.step++;
+                if (this.step === 3) {
+                    this.computeMatches();
+                }
                 this.persist();
             }
         },
@@ -107,10 +100,10 @@ export function newAppModel() {
 
         canProceed() {
             if (this.step === 1) {
-                return validSpyExists(this.spies);
+                return this.spies.some(spy => isCompleteSpy(spy))
             }
             if (this.step === 2) {
-                return validSpyExists(this.fetchedMembers);
+                return this.fetchedMembers.some(spy => isCompleteSpy(spy))
             }
             return false;
         },
@@ -142,6 +135,13 @@ export function newAppModel() {
                 this.isFetchingMembers = false;
             }
         },
+
+        computeMatches() {
+            const validSpies = this.spies.filter(s => isCompleteSpy(s));
+            const validTargets = this.fetchedMembers.filter(m => isCompleteSpy(m));
+            this.matches = makeMatches(validSpies, validTargets);
+        },
+
     };
 }
 
@@ -166,15 +166,5 @@ export function getSpiesFromFaction(faction) {
             defense: formatNumber(spy.defense ?? null),
             dexterity: formatNumber(spy.dexterity ?? null),
         };
-    });
-}
-
-function validSpyExists(spies) {
-    return spies.some(spy => {
-        const s = parseNumber(spy.speed);
-        const st = parseNumber(spy.strength);
-        const d = parseNumber(spy.defense);
-        const dx = parseNumber(spy.dexterity);
-        return s != null && st != null && d != null && dx != null;
     });
 }
