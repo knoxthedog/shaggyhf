@@ -66,8 +66,6 @@ export function makeMatches(targets, attackers, minClass = MatchClass.EVEN) {
             .filter(e => compareMatchClass(e.matchClass, minClass) >= 0)
             .sort((a, b) => b.score - a.score);
 
-        if (matchingAttackers.length === 0) return null; // exclude this target entirely
-
         return {
             target: target.data,
             attackers: matchingAttackers,
@@ -99,6 +97,7 @@ export function makeMatches(targets, attackers, minClass = MatchClass.EVEN) {
  * - Weights favor offensive stats for the purpose of target selection.
  * - Applies a penalty for total stat disparity because log10(attackerStat/targetStat)
  *   normalizes away magnitude.
+ * - Forces a “fail floor” penalty if key stats are extremely mismatched
  */
 export function evaluateMatchup(attacker, target) {
     function safeRatio(numerator, denominator) {

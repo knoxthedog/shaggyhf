@@ -161,24 +161,31 @@
                             </div>
 
                             <!-- Attacker Table -->
-                            <table class="table-auto w-full text-sm border">
-                                <thead class="bg-gray-200">
-                                <tr>
-                                    <th class="border p-2 text-left">Attacker</th>
-                                    <th class="border p-2 text-left">Challenge Level</th>
-                                    <!--<th class="border p-2 text-left">Score</th>-->
-                                </tr>
-                                </thead>
-                                <tbody>
-                                <template x-for="(attacker, j) in matchGroup.attackers" :key="j">
+                            <template x-if="matchGroup.attackers.length">
+                                <table class="table-auto w-full text-sm border">
+                                    <thead class="bg-gray-200">
                                     <tr>
-                                        <td class="border p-2" x-text="attacker.name"></td>
-                                        <td class="border p-2" x-text="attacker.matchClass.label"></td>
-                                        <!--<td class="border p-2" x-text="attacker.score.toFixed(2)"></td>-->
+                                        <th class="border p-2 text-left">Attacker</th>
+                                        <th class="border p-2 text-left">Challenge Level</th>
+                                        <!--<th class="border p-2 text-left">Score</th>-->
                                     </tr>
-                                </template>
-                                </tbody>
-                            </table>
+                                    </thead>
+                                    <tbody>
+                                    <template x-for="(attacker, j) in matchGroup.attackers" :key="j">
+                                        <tr>
+                                            <td class="border p-2" x-text="attacker.name"></td>
+                                            <td class="border p-2" x-text="attacker.matchClass.label"></td>
+                                            <!--<td class="border p-2" x-text="attacker.score.toFixed(2)"></td>-->
+                                        </tr>
+                                    </template>
+                                    </tbody>
+                                </table>
+                            </template>
+
+                            <template x-if="!matchGroup.attackers.length">
+                                <div class="text-gray-600 text-sm">This target has no qualified attackers.</div>
+                            </template>
+
                         </div>
                     </template>
                 </div>
