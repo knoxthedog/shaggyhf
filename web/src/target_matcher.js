@@ -3,7 +3,7 @@ import {getAllStatValues} from './spy_parser.js';
 export const MatchClass = {
     IMPOSSIBLE: { label: 'Impossible', color: 'red-700', minScore: -Infinity },
     HARD:       { label: 'Hard',       color: 'orange-700', minScore: -0.5 },
-    EVEN:       { label: 'Even',       color: 'yellow-700', minScore: -0.2 },
+    EVEN:       { label: 'Even',       color: 'yellow-700', minScore: -0.1 },
     EASY:       { label: 'Easy',       color: 'green-700', minScore: 0.2 },
     TRIVIAL:    { label: 'Trivial',    color: 'blue-700', minScore: 3 },
 };
