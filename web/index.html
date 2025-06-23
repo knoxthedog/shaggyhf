@@ -139,11 +139,43 @@
     <!-- Step 3: Match Evaluations -->
     <template x-if="step === 3">
         <div>
-            <h2 class="text-xl font-semibold mb-4">Match Evaluations</h2>
+            <h2 class="text-xl font-semibold mb-4">Match Suggestions</h2>
 
             <template x-if="matches.length">
                 <div class="space-y-6">
-                    <template x-for="(matchGroup, i) in matches" :key="i">
+
+                    <!-- Match Display Settings -->
+                    <div class="mb-6 p-4 border-2 border-indigo-300 rounded-lg bg-indigo-50 shadow-sm">
+                        <h3 class="font-semibold text-md mb-2 text-indigo-800">Match Display Settings</h3>
+                        <div class="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm text-indigo-900">
+                            <label class="flex items-center gap-2">
+                                <input type="checkbox" x-model="showImpossibleMatches" @change="filterMatches()" />
+                                Impossible Matches
+                            </label>
+                            <label class="flex items-center gap-2">
+                                <input type="checkbox" x-model="showHardMatches" @change="filterMatches()" />
+                                Hard Matches
+                            </label>
+                            <label class="flex items-center gap-2">
+                                <input type="checkbox" x-model="showEvenMatches" @change="filterMatches()" />
+                                Even Matches
+                            </label>
+                            <label class="flex items-center gap-2">
+                                <input type="checkbox" x-model="showEasyMatches" @change="filterMatches()" />
+                                Easy Matches
+                            </label>
+                            <label class="flex items-center gap-2">
+                                <input type="checkbox" x-model="showTrivialMatches" @change="filterMatches()" />
+                                Trivial Matches
+                            </label>
+                            <label class="flex items-center gap-2">
+                                <input type="checkbox" x-model="showUnmatchedTargets" @change="filterMatches()" />
+                                Unmatched Targets
+                            </label>
+                        </div>
+                    </div>
+
+                    <template x-for="(matchGroup, i) in filteredMatches" :key="i">
                         <div class="p-4 border rounded-lg shadow-sm bg-gray-50">
                             <!-- Target Info -->
                             <div class="font-semibold text-lg mb-1" x-text="matchGroup.target.name"></div>

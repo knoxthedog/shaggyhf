@@ -1,5 +1,5 @@
 import {parseSpyText, isCompleteSpy, formatNumber, getStatValue, getTotalStatsFormatted} from './spy_parser.js';
-import { makeMatches } from './target_matcher.js';
+import {makeMatches, filterMatches, MatchClass} from './target_matcher.js';
 
 const STORAGE_KEY = 'spyAppState';
 const FACTION_ID = 49297; // Shaggy Hi-Fidelity
@@ -20,6 +20,13 @@ export function newAppModel() {
 
         // Matchup Report state
         matches: [],
+        filteredMatches: [],
+        showImpossibleMatches: false,
+        showHardMatches: true,
+        showEvenMatches: true,
+        showEasyMatches: true,
+        showTrivialMatches: true,
+        showUnmatchedTargets: true,
 
         // Application state
         step: 1,
@@ -36,6 +43,13 @@ export function newAppModel() {
                     this.fetchedMembers = Array.isArray(state.fetchedMembers) ? state.fetchedMembers : [];
                     this.step = 1;
                     this.lastFetchedMembers = state.lastFetchedMembers ? new Date(state.lastFetchedMembers) : null;
+
+                    this.showImpossibleMatches = state.showImpossibleMatches ?? false;
+                    this.showHardMatches = state.showHardMatches ?? true;
+                    this.showEvenMatches = state.showEvenMatches ?? true;
+                    this.showEasyMatches = state.showEasyMatches ?? true;
+                    this.showTrivialMatches = state.showTrivialMatches ?? true;
+                    this.showUnmatchedTargets = state.showUnmatchedTargets ?? true;
                 } catch (e) {
                     console.warn('Failed to load state:', e);
                 }
@@ -51,6 +65,13 @@ export function newAppModel() {
                 apiKey: this.apiKey,
                 fetchedMembers: this.fetchedMembers,
                 lastFetchedMembers: this.lastFetchedMembers ? this.lastFetchedMembers.toISOString() : null,
+
+                showImpossibleMatches: this.showImpossibleMatches,
+                showHardMatches: this.showHardMatches,
+                showEvenMatches: this.showEvenMatches,
+                showEasyMatches: this.showEasyMatches,
+                showTrivialMatches: this.showTrivialMatches,
+                showUnmatchedTargets: this.showUnmatchedTargets,
             }));
         },
 
@@ -140,7 +161,24 @@ export function newAppModel() {
             const validSpies = this.spies.filter(s => isCompleteSpy(s));
             const validTargets = this.fetchedMembers.filter(m => isCompleteSpy(m));
             this.matches = makeMatches(validSpies, validTargets);
+            this.filterMatches();
         },
+
+        filterMatches() {
+            if (!Array.isArray(this.matches)) {
+                this.filteredMatches = [];
+                return;
+            }
+
+            let includeClasses = [];
+            if (this.showImpossibleMatches) includeClasses.push(MatchClass.IMPOSSIBLE);
+            if (this.showHardMatches) includeClasses.push(MatchClass.HARD);
+            if (this.showEvenMatches) includeClasses.push(MatchClass.EVEN);
+            if (this.showEasyMatches) includeClasses.push(MatchClass.EASY);
+            if (this.showTrivialMatches) includeClasses.push(MatchClass.TRIVIAL);
+
+            this.filteredMatches = filterMatches(this.matches, this.showUnmatchedTargets, includeClasses);
+        }
 
     };
 }
