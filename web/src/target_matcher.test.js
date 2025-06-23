@@ -77,6 +77,11 @@ describe('target_matcher', () => {
             score = evaluateMatchup(attackerWeakDexStr, targetWeakDefSpd);
             expect(score).toBeGreaterThanOrEqual(MatchClass.EVEN.minScore);
             expect(score).toBeLessThan(MatchClass.TRIVIAL.minScore);
+
+            // This pair should be a hard matchup. The attacker has much higher spd, but low def:str ratio.
+            score = evaluateMatchup(attackerWeakDexStr, targetMedDefStr);
+            expect(score).toBeLessThan(MatchClass.EASY.minScore);
+            expect(score).toBeGreaterThanOrEqual(MatchClass.HARD.minScore);
         })
     });
 

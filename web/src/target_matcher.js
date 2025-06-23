@@ -139,10 +139,10 @@ export function evaluateMatchup(attacker, target) {
     const score_def = scoreRatio(attacker.defense, target.strength);
 
     const weightedScore =
-        0.4 * score_hit +
-        0.4 * score_str +
-        0.1 * score_dodge +
-        0.1 * score_def;
+        0.3 * score_hit +
+        0.3 * score_str +
+        0.2 * score_dodge +
+        0.2 * score_def;
 
     // Apply penalty for total stat disparity
     const totalAttacker = attacker.strength + attacker.defense + attacker.speed + attacker.dexterity;
