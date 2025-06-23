@@ -1,4 +1,4 @@
-import {getAllStatValues} from './spy_parser.js';
+import {getAllStatValues, getTotalStatsValue} from './spy_parser.js';
 
 export const MatchClass = Object.freeze({
     IMPOSSIBLE: { rank: 2, label: 'Impossible', color: 'red-700', minScore: -Infinity },
@@ -37,7 +37,6 @@ export function isEqualMatchClass(a, b) {
  *
  * @param targets
  * @param attackers
- * @param minClass
  * @returns {{target: *, attackers: {name: string, score: number, matchClass: MatchClass}[]}[]}
  */
 export function makeMatches(targets, attackers) {
@@ -72,8 +71,9 @@ export function makeMatches(targets, attackers) {
             target: target.data,
             attackers: matchingAttackers,
         };
-    }).filter(Boolean); // remove nulls
-    // TODO sort by target total stats or name?
+    })
+        .filter(Boolean) // remove nulls
+        .sort((a, b) => getTotalStatsValue(b.target) - getTotalStatsValue(a.target)); // sort by target total stats
 }
 
 /**

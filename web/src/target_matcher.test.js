@@ -95,7 +95,7 @@ describe('target_matcher', () => {
         });
 
         it('returns one match group per target with qualifying matches', () => {
-            const result = makeMatches(targets, attackers, MatchClass.IMPOSSIBLE);
+            const result = makeMatches(targets, attackers);
             for (const group of result) {
                 expect(group).toHaveProperty('target');
                 expect(group).toHaveProperty('attackers');
@@ -103,14 +103,14 @@ describe('target_matcher', () => {
         });
 
         it('evaluates every attacker against every target', () => {
-            const result = makeMatches(targets, attackers, MatchClass.IMPOSSIBLE);
+            const result = makeMatches(targets, attackers);
             for (const group of result) {
                 expect(group.attackers.length).toBeLessThanOrEqual(attackers.length);
             }
         });
 
         it('includes score and classification in each attacker entry', () => {
-            const result = makeMatches(targets, attackers, MatchClass.IMPOSSIBLE);
+            const result = makeMatches(targets, attackers);
             for (const group of result) {
                 for (const attacker of group.attackers) {
                     expect(typeof attacker.name).toBe('string');
@@ -122,7 +122,7 @@ describe('target_matcher', () => {
         });
 
         it('sorts attackers by descending score', () => {
-            const result = makeMatches(targets, attackers, MatchClass.IMPOSSIBLE);
+            const result = makeMatches(targets, attackers);
             for (const group of result) {
                 const scores = group.attackers.map(a => a.score);
                 const sorted = [...scores].sort((a, b) => b - a);
@@ -130,8 +130,18 @@ describe('target_matcher', () => {
             }
         });
 
+        it('sorts targets by descending total stats', () => {
+            const result = makeMatches(targets, attackers);
+            const totalStats = group => {
+                const stats = group.target;
+                return stats.strength + stats.defense + stats.speed + stats.dexterity;
+            };
+            const sortedTargets = [...result].sort((a, b) => totalStats(b) - totalStats(a));
+            expect(result).toEqual(sortedTargets);
+        })
+
         it('produces expected classifications', () => {
-            const result = makeMatches(targets, attackers, MatchClass.IMPOSSIBLE);
+            const result = makeMatches(targets, attackers);
 
             const target1 = result.find(g => g.target.name === 'Target1')?.attackers;
             const target2 = result.find(g => g.target.name === 'Target2')?.attackers;
@@ -141,7 +151,7 @@ describe('target_matcher', () => {
         });
 
         it('filters out matches below the minimum match class', () => {
-            const result = makeMatches(targets, attackers, MatchClass.EASY);
+            const result = makeMatches(targets, attackers);
             for (const group of result) {
                 for (const attacker of group.attackers) {
                     expect(compareMatchClass(attacker.matchClass, MatchClass.EASY)).toBeGreaterThanOrEqual(0);
