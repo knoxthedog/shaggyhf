@@ -50,6 +50,34 @@ describe('target_matcher', () => {
             const score = evaluateMatchup(attacker, target);
             expect(score).toBeLessThan(MatchClass.HARD.minScore);
         })
+
+        it('correctly ranks normal matchups with stronger players', () => {
+            const attackerStrongBalanced = {strength: 1_023_408_935, defense: 1_021_561_320, speed: 1_025_640_241, dexterity: 1_217_895_692};
+            const attackerMedDefSpd = {strength: 506_692_782, defense: 1_112_245_254, speed: 1_037_802_394, dexterity: 474_299_494};
+            const attackerWeakDexStr = {strength: 200_436_007, defense: 3_687_086, speed: 163_263_781, dexterity: 300_716_092};
+
+            const targetXStrongDex = {strength: 1_000_111_059, defense: 100_002_751, speed: 1_000_111_059, dexterity: 9_039_398_641};
+            const targetMedDefStr = {strength: 300_445_885, defense: 400_423_004, speed: 278_839_864, dexterity: 1_517_817};
+            const targetWeakDefSpd = {strength: 151_272_933, defense: 271_415_954, speed: 187_692_373, dexterity: 53_007};
+
+            // This pair should be an impossible matchup. The target has 9b dexterity, which means the attacker can never hit.
+            let score = evaluateMatchup(attackerStrongBalanced, targetXStrongDex);
+            expect(score).toBeLessThan(MatchClass.HARD.minScore);
+
+            // This pair should be a trivial matchup. The attacker has much higher stats than the target in every category.
+            score = evaluateMatchup(attackerStrongBalanced, targetMedDefStr);
+            expect(score).toBeGreaterThanOrEqual(MatchClass.TRIVIAL.minScore);
+
+            // This pair should be an easy matchup. The attacker has higher stats in every category, but not by a huge margin.
+            score = evaluateMatchup(attackerMedDefSpd, targetMedDefStr);
+            expect(score).toBeGreaterThanOrEqual(MatchClass.EASY.minScore);
+            expect(score).toBeLessThan(MatchClass.TRIVIAL.minScore);
+
+            // This pair should be an even matchup.
+            score = evaluateMatchup(attackerWeakDexStr, targetWeakDefSpd);
+            expect(score).toBeGreaterThanOrEqual(MatchClass.EVEN.minScore);
+            expect(score).toBeLessThan(MatchClass.TRIVIAL.minScore);
+        })
     });
 
     describe('classifyMatchScore', () => {

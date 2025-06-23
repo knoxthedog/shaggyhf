@@ -5,7 +5,7 @@ export const MatchClass = Object.freeze({
     HARD:       { rank: 1, label: 'Hard',       color: 'orange-700', minScore: -0.5 },
     EVEN:       { rank: 0, label: 'Even',       color: 'yellow-700', minScore: -0.1 },
     EASY:       { rank: -1, label: 'Easy',       color: 'green-700', minScore: 0.2 },
-    TRIVIAL:    { rank: -2, label: 'Trivial',    color: 'blue-700', minScore: 3 },
+    TRIVIAL:    { rank: -2, label: 'Trivial',    color: 'blue-700', minScore: 2 },
 });
 
 export function classifyMatchScore(score) {
@@ -154,10 +154,10 @@ export function evaluateMatchup(attacker, target) {
     let finalScore =  weightedScore - penaltyWeight * totalDisparityPenalty;
 
     // Apply “fail floor” penalty if key stat mismatch is extreme
-    const ratio_hit = safeRatio(target.dexterity, attacker.speed);
-    const ratio_str = safeRatio(target.defense, attacker.strength);
+    const ratio_hit = safeRatio(attacker.speed, target.dexterity);
+    const ratio_str = safeRatio(attacker.strength, target.defense);
     const FAIL_PENALTY = 5; // severe enough to drop to IMPOSSIBLE
-    if (ratio_hit < 0.1 || ratio_str < 0.1) {
+    if (ratio_hit < 0.4 || ratio_str < 0.4) {
         finalScore -= FAIL_PENALTY;
     }
 
