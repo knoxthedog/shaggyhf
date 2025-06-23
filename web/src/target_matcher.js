@@ -1,12 +1,12 @@
-import {getAllStatValues} from './spy_parser.js';
+import {getAllStatValues, getTotalStatsValue} from './spy_parser.js';
 
-export const MatchClass = {
-    IMPOSSIBLE: { label: 'Impossible', color: 'red-700', minScore: -Infinity },
-    HARD:       { label: 'Hard',       color: 'orange-700', minScore: -0.5 },
-    EVEN:       { label: 'Even',       color: 'yellow-700', minScore: -0.2 },
-    EASY:       { label: 'Easy',       color: 'green-700', minScore: 0.2 },
-    TRIVIAL:    { label: 'Trivial',    color: 'blue-700', minScore: 3 },
-};
+export const MatchClass = Object.freeze({
+    IMPOSSIBLE: { rank: 2, label: 'Impossible', color: 'red-700', minScore: -Infinity },
+    HARD:       { rank: 1, label: 'Hard',       color: 'orange-700', minScore: -0.5 },
+    EVEN:       { rank: 0, label: 'Even',       color: 'yellow-700', minScore: -0.1 },
+    EASY:       { rank: -1, label: 'Easy',       color: 'green-700', minScore: 0.2 },
+    TRIVIAL:    { rank: -2, label: 'Trivial',    color: 'blue-700', minScore: 3 },
+});
 
 export function classifyMatchScore(score) {
     if (score >= MatchClass.TRIVIAL.minScore) return MatchClass.TRIVIAL;
@@ -21,8 +21,11 @@ export function classifyMatchScore(score) {
  * The return value is negative if a < b, zero if a == b, and positive if a > b.
  */
 export function compareMatchClass(a, b) {
-    const order = [MatchClass.IMPOSSIBLE, MatchClass.HARD, MatchClass.EVEN, MatchClass.EASY, MatchClass.TRIVIAL];
-    return order.indexOf(a) - order.indexOf(b);
+    return a.rank - b.rank;
+}
+
+export function isEqualMatchClass(a, b) {
+    return a?.rank === b?.rank;
 }
 
 /**
@@ -34,10 +37,9 @@ export function compareMatchClass(a, b) {
  *
  * @param targets
  * @param attackers
- * @param minClass
  * @returns {{target: *, attackers: {name: string, score: number, matchClass: MatchClass}[]}[]}
  */
-export function makeMatches(targets, attackers, minClass = MatchClass.EVEN) {
+export function makeMatches(targets, attackers) {
     if (!Array.isArray(targets) || !Array.isArray(attackers)) {
         throw new Error('Both targets and attackers must be arrays');
     }
@@ -63,14 +65,35 @@ export function makeMatches(targets, attackers, minClass = MatchClass.EVEN) {
                     matchClass,
                 };
             })
-            .filter(e => compareMatchClass(e.matchClass, minClass) >= 0)
             .sort((a, b) => b.score - a.score);
 
         return {
             target: target.data,
             attackers: matchingAttackers,
         };
-    }).filter(Boolean); // remove nulls
+    })
+        .filter(Boolean) // remove nulls
+        .sort((a, b) => getTotalStatsValue(b.target) - getTotalStatsValue(a.target)); // sort by target total stats
+}
+
+/**
+ * Filter matches based on match class and whether to include unmatched targets.
+ */
+export function filterMatches(matches,
+                              includeUnmatchedTargets = true,
+                              includeClasses = [ MatchClass.EVEN, MatchClass.EASY, MatchClass.TRIVIAL ]) {
+    if (!Array.isArray(matches)) return [];
+    if (!Array.isArray(includeClasses) || includeClasses.length === 0) return matches;
+
+    return matches.map(group => {
+        const filteredAttackers = group.attackers.filter(attacker =>
+            includeClasses.some(cls => isEqualMatchClass(attacker.matchClass, cls))
+        );
+        return {
+            target: group.target,
+            attackers: filteredAttackers,
+        };
+    }).filter(group => group.attackers.length > 0 || includeUnmatchedTargets);
 }
 
 /**
@@ -81,7 +104,7 @@ export function makeMatches(targets, attackers, minClass = MatchClass.EVEN) {
  *
  * @param {Object} attacker - { strength, defense, speed, dexterity }
  * @param {Object} target   - { strength, defense, speed, dexterity }
- * @returns {number} match score (typically between -1 and +1)
+ * @returns {number} match score (typically between -0.5 and +0.5, but can be outside this range)
  *
  * Details:
  * Heuristic score estimating attacker-vs-target matchup advantage using battle stats only.
@@ -131,8 +154,8 @@ export function evaluateMatchup(attacker, target) {
     let finalScore =  weightedScore - penaltyWeight * totalDisparityPenalty;
 
     // Apply “fail floor” penalty if key stat mismatch is extreme
-    const ratio_hit = safeRatio(attacker.speed, target.dexterity);
-    const ratio_str = safeRatio(attacker.strength, target.defense);
+    const ratio_hit = safeRatio(target.dexterity, attacker.speed);
+    const ratio_str = safeRatio(target.defense, attacker.strength);
     const FAIL_PENALTY = 5; // severe enough to drop to IMPOSSIBLE
     if (ratio_hit < 0.1 || ratio_str < 0.1) {
         finalScore -= FAIL_PENALTY;

@@ -6,7 +6,7 @@
     <title>Ranked War Matchmaker</title>
     <link rel="stylesheet" href="./src/style.css" />
 </head>
-<body class="min-h-screen p-6" x-data="appModel()" x-init="init()">
+<body class="min-h-screen p-6 pb-24" x-data="appModel()" x-init="init()">
 <div class="max-w-4xl mx-auto bg-white p-6 rounded-xl shadow-md">
     <h1 class="text-2xl font-bold mb-4">Ranked War Matchmaker</h1>
 
@@ -139,11 +139,43 @@
     <!-- Step 3: Match Evaluations -->
     <template x-if="step === 3">
         <div>
-            <h2 class="text-xl font-semibold mb-4">Match Evaluations</h2>
+            <h2 class="text-xl font-semibold mb-4">Match Suggestions</h2>
 
             <template x-if="matches.length">
                 <div class="space-y-6">
-                    <template x-for="(matchGroup, i) in matches" :key="i">
+
+                    <!-- Match Display Settings -->
+                    <div class="mb-6 p-4 border-2 border-indigo-300 rounded-lg bg-indigo-50 shadow-sm">
+                        <h3 class="font-semibold text-md mb-2 text-indigo-800">Match Display Settings</h3>
+                        <div class="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm text-indigo-900">
+                            <label class="flex items-center gap-2">
+                                <input type="checkbox" x-model="showImpossibleMatches" @change="filterMatches()" />
+                                Impossible Matches
+                            </label>
+                            <label class="flex items-center gap-2">
+                                <input type="checkbox" x-model="showHardMatches" @change="filterMatches()" />
+                                Hard Matches
+                            </label>
+                            <label class="flex items-center gap-2">
+                                <input type="checkbox" x-model="showEvenMatches" @change="filterMatches()" />
+                                Even Matches
+                            </label>
+                            <label class="flex items-center gap-2">
+                                <input type="checkbox" x-model="showEasyMatches" @change="filterMatches()" />
+                                Easy Matches
+                            </label>
+                            <label class="flex items-center gap-2">
+                                <input type="checkbox" x-model="showTrivialMatches" @change="filterMatches()" />
+                                Trivial Matches
+                            </label>
+                            <label class="flex items-center gap-2">
+                                <input type="checkbox" x-model="showUnmatchedTargets" @change="filterMatches()" />
+                                Unmatched Targets
+                            </label>
+                        </div>
+                    </div>
+
+                    <template x-for="(matchGroup, i) in filteredMatches" :key="i">
                         <div class="p-4 border rounded-lg shadow-sm bg-gray-50">
                             <!-- Target Info -->
                             <div class="font-semibold text-lg mb-1" x-text="matchGroup.target.name"></div>
@@ -199,21 +231,24 @@
 
 
     <!-- Step Navigation with Indicator -->
-    <div class="flex items-center justify-between mt-6">
-        <button @click="prevStep()" :disabled="step === 1" class="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300 disabled:opacity-50">← Back</button>
+    <div class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-300 shadow-md px-6 py-3 z-50">
+        <div class="max-w-4xl mx-auto flex items-center justify-between">
+            <button @click="prevStep()" :disabled="step === 1" class="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300 disabled:opacity-50">← Back</button>
 
-        <div class="flex items-center gap-2">
-            <template x-for="n in 3">
-                <div :class="{
-                        'w-4 h-4 rounded-full': true,
-                        'bg-blue-600': step === n,
-                        'bg-gray-300': step !== n
-                    }"></div>
-            </template>
+            <div class="flex items-center gap-2">
+                <template x-for="n in 3">
+                    <div :class="{
+                            'w-4 h-4 rounded-full': true,
+                            'bg-blue-600': step === n,
+                            'bg-gray-300': step !== n
+                        }"></div>
+                </template>
+            </div>
+
+            <button @click="nextStep()" :disabled="!canProceed() || step === 3" class="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50">Next →</button>
         </div>
-
-        <button @click="nextStep()" :disabled="!canProceed() || step === 3" class="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50">Next →</button>
     </div>
+
 </div>
 
 <script type="module">
