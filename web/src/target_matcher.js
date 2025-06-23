@@ -149,7 +149,7 @@ export function evaluateMatchup(attacker, target) {
     const totalTarget = target.strength + target.defense + target.speed + target.dexterity;
 
     const totalDisparityPenalty = Math.log10(safeRatio(totalTarget, totalAttacker)); // penalty if target has more total stats
-    const penaltyWeight = 1.25; // tunable: how harshly to punish low-total attackers
+    const penaltyWeight = 1.5; // tunable: how harshly to punish low-total attackers
 
     let finalScore =  weightedScore - penaltyWeight * totalDisparityPenalty;
 
