@@ -136,7 +136,7 @@
         </div>
     </template>
 
-    <!-- Step 3: Match Evaluations -->
+    <!-- Step 3: Match Suggestions -->
     <template x-if="step === 3">
         <div>
             <h2 class="text-xl font-semibold mb-4">Match Suggestions</h2>
@@ -173,6 +173,12 @@
                                 Unmatched Targets
                             </label>
                         </div>
+                    </div>
+
+                    <div class="flex justify-end">
+                        <button @click="copyMatchesToClipboard()" class="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700">
+                            📋 Copy Plain Text
+                        </button>
                     </div>
 
                     <template x-for="(matchGroup, i) in filteredMatches" :key="i">

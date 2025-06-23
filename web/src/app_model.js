@@ -178,7 +178,41 @@ export function newAppModel() {
             if (this.showTrivialMatches) includeClasses.push(MatchClass.TRIVIAL);
 
             this.filteredMatches = filterMatches(this.matches, this.showUnmatchedTargets, includeClasses);
-        }
+        },
+
+        renderMatchesAsText() {
+            return this.filteredMatches.map(group => {
+                const lines = [];
+
+                lines.push(`=== ${group.target.name} ===`);
+                lines.push(`Level: ${group.target.level ?? 'N/A'}`);
+                lines.push(`SPD: ${group.target.speed ?? 'N/A'} | STR: ${group.target.strength ?? 'N/A'} | DEF: ${group.target.defense ?? 'N/A'} | DEX: ${group.target.dexterity ?? 'N/A'}`);
+                lines.push(`TOTAL: ${this.formatStatTotal(group.target)}`);
+                lines.push('');
+
+                if (group.attackers.length) {
+                    lines.push(`Attackers:`);
+                    group.attackers.forEach(attacker => {
+                        lines.push(`- ${attacker.name}: ${attacker.matchClass.label}`);
+                    });
+                } else {
+                    lines.push(`No qualified attackers.`);
+                }
+
+                lines.push(''); // Extra line between groups
+                return lines.join('\n');
+            }).join('\n');
+        },
+
+        copyMatchesToClipboard() {
+            const text = this.renderMatchesAsText();
+            navigator.clipboard.writeText(text).then(() => {
+                alert('Match suggestions copied to clipboard!');
+            }).catch(err => {
+                console.error('Copy failed:', err);
+                alert('Failed to copy matches. Check console for details.');
+            });
+        },
 
     };
 }
