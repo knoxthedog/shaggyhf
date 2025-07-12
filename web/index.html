@@ -1,278 +1,38 @@
 <!DOCTYPE html>
-<html lang="en" class="bg-gray-100">
+<html lang="en" x-data="indexModel()" x-init="init()" class="bg-gray-100">
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Ranked War Matchmaker</title>
+    <title>Shaggy Hi-Fidelity Faction Tools</title>
     <link rel="stylesheet" href="./src/style.css" />
 </head>
-<body class="min-h-screen p-6 pb-24" x-data="appModel()" x-init="init()">
-<div class="max-w-4xl mx-auto bg-white p-6 rounded-xl shadow-md">
-    <h1 class="text-2xl font-bold mb-4">Ranked War Matchmaker</h1>
+<body class="min-h-screen p-6 text-gray-800">
+<div class="max-w-2xl mx-auto bg-white p-6 rounded-xl shadow-md">
+    <h1 class="text-2xl font-bold mb-4">Faction Tools</h1>
 
-    <!-- Step 1: Spy Parser -->
-    <template x-if="step === 1">
-        <div>
-            <label class="block mb-2 font-medium">Spies</label>
-            <textarea
-                    x-model="input"
-                    x-debounced-persist
-                    class="w-full h-48 p-3 border rounded resize-none mb-4"
-                    placeholder="Paste spy reports here..."
-            ></textarea>
-
-            <div class="flex gap-4 mb-4">
-                <button @click="parse()" :disabled="!hasInput()" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50">Read Spies</button>
-                <button @click="clear()" class="bg-gray-300 text-gray-800 px-4 py-2 rounded hover:bg-gray-400">Clear</button>
-            </div>
-
-            <template x-if="spies.length">
-                <div class="overflow-x-auto">
-                    <template x-if="hasInvalidStats(spies)">
-                        <div class="mb-4 p-3 rounded border border-yellow-400 bg-yellow-100 text-yellow-900 text-sm">
-                            ⚠️ Some targets have missing or invalid battle stat values. They will not be matched.
-                        </div>
-                    </template>
-                    <table class="table-auto w-full border border-gray-300 text-sm">
-                        <thead class="bg-gray-200">
-                        <tr>
-                            <th class="border p-2">Name</th>
-                            <th class="border p-2">Level</th>
-                            <th class="border p-2">Speed</th>
-                            <th class="border p-2">Strength</th>
-                            <th class="border p-2">Defense</th>
-                            <th class="border p-2">Dexterity</th>
-                            <th class="border p-2">Total</th>
-                        </tr>
-                        </thead>
-                        <tbody>
-                        <template x-for="(spy, i) in spies" :key="i">
-                            <tr>
-                                <td class="border p-2"><input x-model="spy.name" x-debounced-persist class="w-full border rounded p-1"/></td>
-                                <td class="border p-2"><input x-model="spy.level" x-debounced-persist class="w-full border rounded p-1"/></td>
-                                <td class="border p-2"><input x-model="spy.speed" x-debounced-persist :class="isInvalidStat(spy, 'speed') ? 'border-red-500 bg-red-50' : 'border-gray-300'" class="w-full border rounded p-1"/></td>
-                                <td class="border p-2"><input x-model="spy.strength" x-debounced-persist :class="isInvalidStat(spy, 'strength') ? 'border-red-500 bg-red-50' : 'border-gray-300'" class="w-full border rounded p-1"/></td>
-                                <td class="border p-2"><input x-model="spy.defense" x-debounced-persist :class="isInvalidStat(spy, 'defense') ? 'border-red-500 bg-red-50' : 'border-gray-300'" class="w-full border rounded p-1"/></td>
-                                <td class="border p-2"><input x-model="spy.dexterity" x-debounced-persist :class="isInvalidStat(spy, 'dexterity') ? 'border-red-500 bg-red-50' : 'border-gray-300'" class="w-full border rounded p-1"/></td>
-                                <td class="border p-2"><input class="w-full border rounded p-1 bg-gray-100 text-gray-700" :value="formatStatTotal(spy)" readonly/></td>
-                            </tr>
-                        </template>
-                        </tbody>
-                    </table>
-                </div>
-            </template>
-        </div>
-    </template>
-
-    <!-- Step 2: Fetch Faction Stats -->
-    <template x-if="step === 2">
-        <div>
-            <label class="block mb-2 font-medium">
-                TornStats API Key
-                <a href="https://www.tornstats.com/settings/general" target="_blank" rel="noopener" class="ml-2 text-blue-600 hover:underline text-sm">
-                    (Where do I find this?)
-                </a>
-            </label>
-
-            <input x-model="apiKey" x-debounced-persist type="text" class="w-full border rounded p-2 mb-4" placeholder="Paste your TornStats API key here" />
-
-            <button @click="fetchFactionStats" :disabled="!hasValidAPIKey()" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 disabled:opacity-50">
-                Fetch Faction Stats
-            </button>
-
-            <div class="mt-2 text-sm text-gray-600" x-show="isFetchingMembers">
-                <span class="animate-spin inline-block w-4 h-4 border-2 border-gray-300 border-t-transparent rounded-full mr-2"></span>
-                Fetching faction stats...
-            </div>
-
-            <template x-if="fetchMembersError">
-                <div class="mt-2 p-3 rounded border border-red-400 bg-red-100 text-red-800 text-sm">
-                    ❌ <div x-text="fetchMembersError"></div>
-                    <div class="text-xs text-red-700 mt-1" x-text="fetchMembersErrorDetail"></div>
-                </div>
-            </template>
-
-            <template x-if="lastFetchedMembers && !isFetchingMembers">
-                <div class="mt-2 text-sm text-gray-600">
-                    ✅ Last updated: <span x-text="lastFetchedMembers.toLocaleString()"></span>
-                </div>
-            </template>
-
-            <template x-if="fetchedMembers.length">
-                <div class="overflow-x-auto mt-6">
-                    <template x-if="hasInvalidStats(fetchedMembers)">
-                        <div class="mb-4 p-3 rounded border border-yellow-400 bg-yellow-100 text-yellow-900 text-sm">
-                            ⚠️ Some members have missing battle stat values. They will not be matched.
-                        </div>
-                    </template>
-                    <table class="table-auto w-full border border-gray-300 text-sm">
-                        <thead class="bg-gray-200">
-                        <tr>
-                            <th class="border p-2">Name</th>
-                            <th class="border p-2">Level</th>
-                            <th class="border p-2">Speed</th>
-                            <th class="border p-2">Strength</th>
-                            <th class="border p-2">Defense</th>
-                            <th class="border p-2">Dexterity</th>
-                            <th class="border p-2">Total</th>
-                        </tr>
-                        </thead>
-                        <tbody>
-                        <template x-for="(member, i) in fetchedMembers" :key="i">
-                            <tr :class="hasInvalidStats([member]) ? 'bg-red-50' : ''" >
-                                <td class="border p-2" x-text="member.name"></td>
-                                <td class="border p-2" x-text="member.level"></td>
-                                <td class="border p-2" x-text="member.speed"></td>
-                                <td class="border p-2" x-text="member.strength"></td>
-                                <td class="border p-2" x-text="member.defense"></td>
-                                <td class="border p-2" x-text="member.dexterity"></td>
-                                <td class="border p-2" x-text="formatStatTotal(member)"></td>
-                            </tr>
-                        </template>
-                        </tbody>
-                    </table>
-                </div>
-            </template>
-        </div>
-    </template>
-
-    <!-- Step 3: Match Suggestions -->
-    <template x-if="step === 3">
-        <div>
-            <h2 class="text-xl font-semibold mb-4">Match Suggestions</h2>
-
-            <template x-if="matches.length">
-                <div class="space-y-6">
-
-                    <!-- Match Display Settings -->
-                    <div class="mb-6 p-4 border-2 border-indigo-300 rounded-lg bg-indigo-50 shadow-sm">
-                        <h3 class="font-semibold text-md mb-2 text-indigo-800">Match Display Settings</h3>
-                        <div class="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm text-indigo-900">
-                            <label class="flex items-center gap-2">
-                                <input type="checkbox" x-model="showImpossibleMatches" @change="filterMatches()" />
-                                Impossible Matches
-                            </label>
-                            <label class="flex items-center gap-2">
-                                <input type="checkbox" x-model="showHardMatches" @change="filterMatches()" />
-                                Hard Matches
-                            </label>
-                            <label class="flex items-center gap-2">
-                                <input type="checkbox" x-model="showEvenMatches" @change="filterMatches()" />
-                                Even Matches
-                            </label>
-                            <label class="flex items-center gap-2">
-                                <input type="checkbox" x-model="showEasyMatches" @change="filterMatches()" />
-                                Easy Matches
-                            </label>
-                            <label class="flex items-center gap-2">
-                                <input type="checkbox" x-model="showTrivialMatches" @change="filterMatches()" />
-                                Trivial Matches
-                            </label>
-                            <label class="flex items-center gap-2">
-                                <input type="checkbox" x-model="showUnmatchedTargets" @change="filterMatches()" />
-                                Unmatched Targets
-                            </label>
-                        </div>
-                    </div>
-
-                    <div class="flex justify-end">
-                        <button @click="copyMatchesToClipboard()" class="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700">
-                            📋 Copy Plain Text
-                        </button>
-                    </div>
-
-                    <template x-for="(matchGroup, i) in filteredMatches" :key="i">
-                        <div class="p-4 border rounded-lg shadow-sm bg-gray-50">
-                            <!-- Target Info -->
-                            <div class="font-semibold text-lg mb-1" x-text="matchGroup.target.name"></div>
-                            <div class="text-sm text-gray-700 mb-1">
-                                Level <span x-text="matchGroup.target.level || 'N/A'"></span>
-                            </div>
-                            <div class="text-sm text-gray-700 mb-1">
-                                SPD: <span x-text="matchGroup.target.speed"></span> |
-                                STR: <span x-text="matchGroup.target.strength"></span> |
-                                DEF: <span x-text="matchGroup.target.defense"></span> |
-                                DEX: <span x-text="matchGroup.target.dexterity"></span>
-                            </div>
-                            <div class="text-sm text-gray-700 mb-3">
-                                TOTAL: <span x-text="formatStatTotal(matchGroup.target)"></span>
-                            </div>
-
-                            <!-- Attacker Table -->
-                            <template x-if="matchGroup.attackers.length">
-                                <table class="table-auto w-full text-sm border">
-                                    <thead class="bg-gray-200">
-                                    <tr>
-                                        <th class="border p-2 text-left">Attacker</th>
-                                        <th class="border p-2 text-left">Challenge Level</th>
-                                        <!--<th class="border p-2 text-left">Score</th>-->
-                                    </tr>
-                                    </thead>
-                                    <tbody>
-                                    <template x-for="(attacker, j) in matchGroup.attackers" :key="j">
-                                        <tr>
-                                            <td class="border p-2" x-text="attacker.name"></td>
-                                            <td class="border p-2" x-text="attacker.matchClass.label"></td>
-                                            <!--<td class="border p-2" x-text="attacker.score.toFixed(2)"></td>-->
-                                        </tr>
-                                    </template>
-                                    </tbody>
-                                </table>
-                            </template>
-
-                            <template x-if="!matchGroup.attackers.length">
-                                <div class="text-gray-600 text-sm">This target has no qualified attackers.</div>
-                            </template>
-
-                        </div>
-                    </template>
-                </div>
-            </template>
-
-            <template x-if="!matches.length">
-                <div class="text-gray-600 text-sm">No qualifying matches found.</div>
-            </template>
-        </div>
-    </template>
-
-
-    <!-- Step Navigation with Indicator -->
-    <div class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-300 shadow-md px-6 py-3 z-50">
-        <div class="max-w-4xl mx-auto flex items-center justify-between">
-            <button @click="prevStep()" :disabled="step === 1" class="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300 disabled:opacity-50">← Back</button>
-
-            <div class="flex items-center gap-2">
-                <template x-for="n in 3">
-                    <div :class="{
-                            'w-4 h-4 rounded-full': true,
-                            'bg-blue-600': step === n,
-                            'bg-gray-300': step !== n
-                        }"></div>
-                </template>
-            </div>
-
-            <button @click="nextStep()" :disabled="!canProceed() || step === 3" class="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50">Next →</button>
-        </div>
-    </div>
-
+    <ul class="space-y-3">
+        <li>
+            <a href="rw_matcher.html" class="block px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700">
+                Ranked War Matchmaker
+            </a>
+        </li>
+        <!-- Future tools can be added as more <li> here -->
+    </ul>
 </div>
-
-<script type="module">
-    import { newAppModel } from './src/app_model.js'
-    window.appModel = newAppModel
-</script>
 
 <script type="module">
     import Alpine from 'alpinejs'
 
-    Alpine.directive('debounced-persist', (el, { expression }, { evaluate }) => {
-        el.addEventListener('input', () => {
-            const fn = evaluate(expression || 'debouncedPersist');
-            fn?.();
-        });
-    });
+    function indexModel() {
+        return {
+            init() {
+                console.log('Index page initialized')
+            }
+        }
+    }
 
-    window.Alpine = Alpine
+    window.indexModel = indexModel
+
     Alpine.start()
 </script>
 </body>

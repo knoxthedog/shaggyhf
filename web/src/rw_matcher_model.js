@@ -1,10 +1,10 @@
 import {parseSpyText, isCompleteSpy, formatNumber, getStatValue, getTotalStatsFormatted} from './spy_parser.js';
 import {makeMatches, filterMatches, MatchClass} from './target_matcher.js';
 
-const STORAGE_KEY = 'spyAppState';
+const STORAGE_KEY = 'rw_matcher_state';
 const FACTION_ID = 49297; // Shaggy Hi-Fidelity
 
-export function newAppModel() {
+export function newRWMatcherModel() {
     return {
         // Spy Parser state
         input: '',
@@ -75,18 +75,18 @@ export function newAppModel() {
             }));
         },
 
-        parse() { // TODO rename to parseSpies
+        parseSpies() {
             this.spies = parseSpyText(this.input);
             this.persist();
         },
 
-        clear() { // TODO rename to clearSpies
+        clearSpies() {
             this.input = '';
             this.spies = [];
             localStorage.removeItem(STORAGE_KEY);
         },
 
-        hasInput() { // TODO rename to hasSpyInput
+        hasSpyInput() {
             return this.input && this.input.trim().length > 0;
         },
 
