@@ -1,3 +1,45 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Semantic theme tokens */
+:root {
+    --color-background: #f9fafb;
+    --color-surface: #ffffff;
+    --color-text-primary: #1f2937;
+    --color-text-secondary: #6b7280;
+    --color-border: #d1d5db;
+    --color-accent: #3b82f6;
+    --color-accent-hover: #2563eb;
+    --color-muted: #e5e7eb;
+    --color-warning-bg: #fef3c7;
+    --color-warning-text: #92400e;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --color-background: #1f2937;
+        --color-surface: #374151;
+        --color-text-primary: #f3f4f6;
+        --color-text-secondary: #9ca3af;
+        --color-border: #4b5563;
+        --color-accent: #3b82f6;
+        --color-accent-hover: #2563eb;
+        --color-muted: #4b5563;
+        --color-warning-bg: #92400e;
+        --color-warning-text: #fef3c7;
+    }
+}
+
+/* Fix form control backgrounds and borders */
+@layer base {
+    input,
+    textarea,
+    select {
+        @apply bg-surface text-textPrimary border border-border rounded focus:outline-none focus:ring-2 focus:ring-accent;
+    }
+
+    input[readonly] {
+        @apply bg-muted;
+    }
+}

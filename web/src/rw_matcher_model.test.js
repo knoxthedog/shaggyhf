@@ -1,4 +1,4 @@
-import { getSpiesFromFaction } from './app_model';
+import { getSpiesFromFaction } from './rw_matcher_model';
 
 
 test('extracts spies correctly', () => {
