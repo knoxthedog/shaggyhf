@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class="bg-gray-100">
+<html lang="en" class="bg-background dark:bg-background-dark">
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="./src/style.css" />
 </head>
 <body class="min-h-screen p-6 pb-24" x-data="appModel()" x-init="init()">
-<div class="max-w-4xl mx-auto bg-white p-6 rounded-xl shadow-md">
+<div class="max-w-4xl mx-auto bg-surface dark:bg-surface-dark p-6 rounded-xl shadow-md">
     <h1 class="text-2xl font-bold mb-4">Ranked War Matchmaker</h1>
 
     <!-- Step 1: Spy Parser -->
@@ -22,19 +22,19 @@
             ></textarea>
 
             <div class="flex gap-4 mb-4">
-                <button @click="parseSpies()" :disabled="!hasSpyInput()" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50">Read Spies</button>
+                <button @click="parseSpies()" :disabled="!hasSpyInput()" class="bg-accent text-white px-4 py-2 rounded hover:bg-accentHover disabled:opacity-50">Read Spies</button>
                 <button @click="clearSpies()" class="bg-gray-300 text-gray-800 px-4 py-2 rounded hover:bg-gray-400">Clear</button>
             </div>
 
             <template x-if="spies.length">
                 <div class="overflow-x-auto">
                     <template x-if="hasInvalidStats(spies)">
-                        <div class="mb-4 p-3 rounded border border-yellow-400 bg-yellow-100 text-yellow-900 text-sm">
+                        <div class="mb-4 p-3 rounded border border-yellow-400 bg-warningBg text-warningText text-sm">
                             ⚠️ Some targets have missing or invalid battle stat values. They will not be matched.
                         </div>
                     </template>
-                    <table class="table-auto w-full border border-gray-300 text-sm">
-                        <thead class="bg-gray-200">
+                    <table class="table-auto w-full border border-border dark:border-border-dark text-sm">
+                        <thead class="bg-muted dark:bg-muted-dark">
                         <tr>
                             <th class="border p-2">Name</th>
                             <th class="border p-2">Level</th>
@@ -50,11 +50,11 @@
                             <tr>
                                 <td class="border p-2"><input x-model="spy.name" x-debounced-persist class="w-full border rounded p-1"/></td>
                                 <td class="border p-2"><input x-model="spy.level" x-debounced-persist class="w-full border rounded p-1"/></td>
-                                <td class="border p-2"><input x-model="spy.speed" x-debounced-persist :class="isInvalidStat(spy, 'speed') ? 'border-red-500 bg-red-50' : 'border-gray-300'" class="w-full border rounded p-1"/></td>
-                                <td class="border p-2"><input x-model="spy.strength" x-debounced-persist :class="isInvalidStat(spy, 'strength') ? 'border-red-500 bg-red-50' : 'border-gray-300'" class="w-full border rounded p-1"/></td>
-                                <td class="border p-2"><input x-model="spy.defense" x-debounced-persist :class="isInvalidStat(spy, 'defense') ? 'border-red-500 bg-red-50' : 'border-gray-300'" class="w-full border rounded p-1"/></td>
-                                <td class="border p-2"><input x-model="spy.dexterity" x-debounced-persist :class="isInvalidStat(spy, 'dexterity') ? 'border-red-500 bg-red-50' : 'border-gray-300'" class="w-full border rounded p-1"/></td>
-                                <td class="border p-2"><input class="w-full border rounded p-1 bg-gray-100 text-gray-700" :value="formatStatTotal(spy)" readonly/></td>
+                                <td class="border p-2"><input x-model="spy.speed" x-debounced-persist :class="isInvalidStat(spy, 'speed') ? 'border-red-500 bg-red-50' : 'border-border dark:border-border-dark'" class="w-full border rounded p-1"/></td>
+                                <td class="border p-2"><input x-model="spy.strength" x-debounced-persist :class="isInvalidStat(spy, 'strength') ? 'border-red-500 bg-red-50' : 'border-border dark:border-border-dark'" class="w-full border rounded p-1"/></td>
+                                <td class="border p-2"><input x-model="spy.defense" x-debounced-persist :class="isInvalidStat(spy, 'defense') ? 'border-red-500 bg-red-50' : 'border-border dark:border-border-dark'" class="w-full border rounded p-1"/></td>
+                                <td class="border p-2"><input x-model="spy.dexterity" x-debounced-persist :class="isInvalidStat(spy, 'dexterity') ? 'border-red-500 bg-red-50' : 'border-border dark:border-border-dark'" class="w-full border rounded p-1"/></td>
+                                <td class="border p-2"><input class="w-full border rounded p-1 bg-background dark:bg-background-dark text-textPrimary dark:text-textPrimary-dark" :value="formatStatTotal(spy)" readonly/></td>
                             </tr>
                         </template>
                         </tbody>
@@ -80,8 +80,8 @@
                 Fetch Faction Stats
             </button>
 
-            <div class="mt-2 text-sm text-gray-600" x-show="isFetchingMembers">
-                <span class="animate-spin inline-block w-4 h-4 border-2 border-gray-300 border-t-transparent rounded-full mr-2"></span>
+            <div class="mt-2 text-sm text-textSecondary dark:text-textSecondary-dark" x-show="isFetchingMembers">
+                <span class="animate-spin inline-block w-4 h-4 border-2 border-border dark:border-border-dark border-t-transparent rounded-full mr-2"></span>
                 Fetching faction stats...
             </div>
 
@@ -93,7 +93,7 @@
             </template>
 
             <template x-if="lastFetchedMembers && !isFetchingMembers">
-                <div class="mt-2 text-sm text-gray-600">
+                <div class="mt-2 text-sm text-textSecondary dark:text-textSecondary-dark">
                     ✅ Last updated: <span x-text="lastFetchedMembers.toLocaleString()"></span>
                 </div>
             </template>
@@ -101,12 +101,12 @@
             <template x-if="fetchedMembers.length">
                 <div class="overflow-x-auto mt-6">
                     <template x-if="hasInvalidStats(fetchedMembers)">
-                        <div class="mb-4 p-3 rounded border border-yellow-400 bg-yellow-100 text-yellow-900 text-sm">
+                        <div class="mb-4 p-3 rounded border border-yellow-400 bg-warningBg text-warningText text-sm">
                             ⚠️ Some members have missing battle stat values. They will not be matched.
                         </div>
                     </template>
-                    <table class="table-auto w-full border border-gray-300 text-sm">
-                        <thead class="bg-gray-200">
+                    <table class="table-auto w-full border border-border dark:border-border-dark text-sm">
+                        <thead class="bg-muted dark:bg-muted-dark">
                         <tr>
                             <th class="border p-2">Name</th>
                             <th class="border p-2">Level</th>
@@ -185,23 +185,23 @@
                         <div class="p-4 border rounded-lg shadow-sm bg-gray-50">
                             <!-- Target Info -->
                             <div class="font-semibold text-lg mb-1" x-text="matchGroup.target.name"></div>
-                            <div class="text-sm text-gray-700 mb-1">
+                            <div class="text-sm text-textPrimary dark:text-textPrimary-dark mb-1">
                                 Level <span x-text="matchGroup.target.level || 'N/A'"></span>
                             </div>
-                            <div class="text-sm text-gray-700 mb-1">
+                            <div class="text-sm text-textPrimary dark:text-textPrimary-dark mb-1">
                                 SPD: <span x-text="matchGroup.target.speed"></span> |
                                 STR: <span x-text="matchGroup.target.strength"></span> |
                                 DEF: <span x-text="matchGroup.target.defense"></span> |
                                 DEX: <span x-text="matchGroup.target.dexterity"></span>
                             </div>
-                            <div class="text-sm text-gray-700 mb-3">
+                            <div class="text-sm text-textPrimary dark:text-textPrimary-dark mb-3">
                                 TOTAL: <span x-text="formatStatTotal(matchGroup.target)"></span>
                             </div>
 
                             <!-- Attacker Table -->
                             <template x-if="matchGroup.attackers.length">
                                 <table class="table-auto w-full text-sm border">
-                                    <thead class="bg-gray-200">
+                                    <thead class="bg-muted dark:bg-muted-dark">
                                     <tr>
                                         <th class="border p-2 text-left">Attacker</th>
                                         <th class="border p-2 text-left">Challenge Level</th>
@@ -221,7 +221,7 @@
                             </template>
 
                             <template x-if="!matchGroup.attackers.length">
-                                <div class="text-gray-600 text-sm">This target has no qualified attackers.</div>
+                                <div class="text-textSecondary dark:text-textSecondary-dark text-sm">This target has no qualified attackers.</div>
                             </template>
 
                         </div>
@@ -230,28 +230,28 @@
             </template>
 
             <template x-if="!matches.length">
-                <div class="text-gray-600 text-sm">No qualifying matches found.</div>
+                <div class="text-textSecondary dark:text-textSecondary-dark text-sm">No qualifying matches found.</div>
             </template>
         </div>
     </template>
 
 
     <!-- Step Navigation with Indicator -->
-    <div class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-300 shadow-md px-6 py-3 z-50">
+    <div class="fixed bottom-0 left-0 right-0 bg-surface dark:bg-surface-dark border-t border-border dark:border-border-dark shadow-md px-6 py-3 z-50">
         <div class="max-w-4xl mx-auto flex items-center justify-between">
-            <button @click="prevStep()" :disabled="step === 1" class="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300 disabled:opacity-50">← Back</button>
+            <button @click="prevStep()" :disabled="step === 1" class="px-4 py-2 rounded bg-muted dark:bg-muted-dark hover:bg-gray-300 disabled:opacity-50">← Back</button>
 
             <div class="flex items-center gap-2">
                 <template x-for="n in 3">
                     <div :class="{
                             'w-4 h-4 rounded-full': true,
-                            'bg-blue-600': step === n,
+                            'bg-accent': step === n,
                             'bg-gray-300': step !== n
                         }"></div>
                 </template>
             </div>
 
-            <button @click="nextStep()" :disabled="!canProceed() || step === 3" class="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50">Next →</button>
+            <button @click="nextStep()" :disabled="!canProceed() || step === 3" class="px-4 py-2 rounded bg-accent text-white hover:bg-accentHover disabled:opacity-50">Next →</button>
         </div>
     </div>
 
