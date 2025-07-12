@@ -116,6 +116,8 @@ export function newRWMatcherModel() {
             if (this.step > 1) {
                 this.step--;
                 this.persist();
+            } else if (this.step === 1) {
+                window.location.href = './index.html';
             }
         },
 
