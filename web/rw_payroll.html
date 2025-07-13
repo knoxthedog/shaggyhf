@@ -151,6 +151,21 @@
                 </template>
                 </tbody>
             </table>
+
+            <div class="mt-4 flex gap-2 justify-end">
+                <button
+                        @click="exportReportAsCSV"
+                        class="px-3 py-2 rounded bg-muted hover:bg-border text-sm"
+                >
+                    Export CSV
+                </button>
+                <button
+                        @click="exportReportAsText"
+                        class="px-3 py-2 rounded bg-muted hover:bg-border text-sm"
+                >
+                    Export Plain Text
+                </button>
+            </div>
         </div>
     </template>
 
@@ -389,7 +404,47 @@
             } finally {
                 this.isLoading = false
             }
-        }
+        },
+
+        exportReportAsCSV() {
+            if (!this.report.length) return;
+
+            const headers = ['Player', 'War Hits', 'Outside Hits', 'Effective Hits', 'Payout ($)'];
+            const rows = this.report.map(r =>
+                [
+                    `"${r.name}"`,
+                    r.warHits,
+                    r.outsideHits,
+                    r.effectiveHits.toFixed(2),
+                    r.payout
+                ].join(',')
+            );
+
+            const csvContent = [headers.join(','), ...rows].join('\n');
+            this.downloadFile('payroll_summary.csv', csvContent, 'text/csv');
+        },
+
+        exportReportAsText() {
+            if (!this.report.length) return;
+
+            const lines = this.report.map(r =>
+                `${r.name}: ${r.warHits} war hits, ${r.outsideHits} outside hits, ${r.effectiveHits.toFixed(2)} effective hits, $${r.payout.toLocaleString()}`
+            );
+
+            const content = lines.join('\n');
+            this.downloadFile('payroll_summary.txt', content, 'text/plain');
+        },
+
+        downloadFile(filename, content, mimeType) { // TODO move to utils
+            const blob = new Blob([content], { type: mimeType });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.click();
+            URL.revokeObjectURL(url);
+        },
+
     }))
 
     Alpine.start()
