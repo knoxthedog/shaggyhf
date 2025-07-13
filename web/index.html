@@ -10,16 +10,35 @@
 <div class="max-w-2xl mx-auto bg-surface p-6 rounded-xl shadow-md">
     <img id="hero-image" alt="Shaggy Hi-Fidelity" class="w-full rounded-xl mb-6 shadow-lg">
 
-    <h1 class="text-2xl font-bold mb-4">Faction Tools</h1>
+    <!-- Torn API Key input -->
+    <div class="mb-6" x-data="apiKeyModel()" x-init="init()">
+        <h2 class="text-xl font-semibold mb-2 text-textPrimary">Torn API Key</h2>
+        <p class="text-sm text-textSecondary mb-2">
+            A <strong>"Limited"</strong> API key is required to access the faction attack log.
+        </p>
+        <div class="flex space-x-2">
+            <input id="api-key-input" type="text" x-model="apiKeyInput" placeholder="Enter your Torn API Key"
+                   class="flex-1 border border-border rounded p-2 bg-background text-textPrimary placeholder-textSecondary">
+            <button @click="saveApiKey" class="px-4 py-2 rounded bg-accent text-white hover:bg-accentHover">Save</button>
+        </div>
+        <template x-if="savedMessage">
+            <p class="text-sm mt-2 text-successText">API key saved.</p>
+        </template>
+    </div>
+
+    <!-- Faction Tools header -->
+    <h1 class="text-2xl font-bold mb-4 text-textPrimary">Faction Tools</h1>
 
     <ul class="space-y-3">
         <li>
-            <a href="rw_matcher.html" class="block px-4 py-2 rounded bg-accent text-white hover:bg-accentHover">
+            <a href="rw_matcher.html"
+               class="block px-4 py-2 rounded bg-accent text-white hover:bg-accentHover">
                 Ranked War Matchmaker
             </a>
         </li>
         <li>
-            <a href="rw_payroll.html" class="block px-4 py-2 rounded bg-accent text-white hover:bg-accentHover">
+            <a href="rw_payroll.html"
+               class="block px-4 py-2 rounded bg-accent text-white hover:bg-accentHover">
                 Ranked War Payroll Calculator
             </a>
         </li>
@@ -38,7 +57,28 @@
         }
     }
 
+    function apiKeyModel() {
+        return {
+            apiKeyInput: '',
+            savedMessage: false,
+            init() {
+                const storedKey = localStorage.getItem('tornApiKey')
+                if (storedKey) {
+                    this.apiKeyInput = storedKey
+                }
+            },
+            saveApiKey() {
+                if (this.apiKeyInput.trim()) {
+                    localStorage.setItem('tornApiKey', this.apiKeyInput.trim())
+                    this.savedMessage = true
+                    setTimeout(() => this.savedMessage = false, 2000)
+                }
+            }
+        }
+    }
+
     window.indexModel = indexModel
+    window.apiKeyModel = apiKeyModel
     document.getElementById('hero-image').src = shaggyUrl
     Alpine.start()
 </script>
