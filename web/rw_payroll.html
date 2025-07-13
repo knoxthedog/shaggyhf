@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en" class="bg-background">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ranked War Payroll</title>
+    <link rel="stylesheet" href="./src/style.css" />
+</head>
+<body class="min-h-screen p-6 text-textPrimary bg-background" x-data="payrollModel()" x-init="init()">
+<div class="max-w-2xl mx-auto bg-surface p-6 rounded-xl shadow-md">
+    <h1 class="text-2xl font-bold mb-4">Ranked War Payroll</h1>
+
+    <!-- API Key input -->
+    <template x-if="!apiKey">
+        <div>
+            <label class="block mb-2 font-medium">Torn API Key</label>
+            <input
+                    x-model="apiKeyInput"
+                    type="text"
+                    class="w-full border border-border rounded p-2 mb-4"
+                    placeholder="Paste your Torn API key here"
+            />
+            <button
+                    @click="saveApiKey"
+                    :disabled="!apiKeyInput"
+                    class="bg-accent text-white px-4 py-2 rounded hover:bg-accentHover disabled:opacity-50"
+            >
+                Save API Key
+            </button>
+        </div>
+    </template>
+
+    <!-- Ranked Wars selector -->
+    <template x-if="apiKey && rankedWars.length">
+        <div>
+            <label class="block mb-2 font-medium">Select Ranked War</label>
+            <select x-model="selectedWarId" class="w-full border border-border rounded p-2 mb-4">
+                <option value="" disabled>Select a war...</option>
+                <template x-for="war in rankedWars" :key="war.id">
+                    <option :value="war.id" x-text="war.opposingFactionName"></option>
+                </template>
+            </select>
+        </div>
+    </template>
+
+    <!-- Profit / Costs inputs -->
+    <template x-if="selectedWarId">
+        <div class="space-y-4">
+            <div>
+                <label class="block mb-2 font-medium">Profit ($)</label>
+                <input
+                        x-model.number="profit"
+                        type="number"
+                        min="0"
+                        class="w-full border border-border rounded p-2"
+                        placeholder="Enter profit amount"
+                />
+            </div>
+            <div>
+                <label class="block mb-2 font-medium">Costs ($)</label>
+                <input
+                        x-model.number="costs"
+                        type="number"
+                        min="0"
+                        class="w-full border border-border rounded p-2"
+                        placeholder="Enter costs amount"
+                />
+            </div>
+            <div>
+                <label class="block mb-2 font-medium">Faction Take (%)</label>
+                <input
+                        x-model.number="factionTake"
+                        type="number"
+                        min="0"
+                        max="100"
+                        class="w-full border border-border rounded p-2"
+                        placeholder="e.g., 25 for 25%"
+                />
+            </div>
+            <div>
+                <label class="block mb-2 font-medium">Outside Hit Value (%)</label>
+                <input
+                        x-model.number="outsideHitValue"
+                        type="number"
+                        min="0"
+                        max="100"
+                        class="w-full border border-border rounded p-2"
+                        placeholder="e.g., 50 for 50%"
+                />
+            </div>
+        </div>
+    </template>
+
+    <!-- Generate Report button -->
+    <template x-if="canGenerateReport()">
+        <div class="mt-4">
+            <button
+                    @click="generateReport"
+                    class="bg-accent text-white px-4 py-2 rounded hover:bg-accentHover disabled:opacity-50"
+            >
+                Generate Report
+            </button>
+        </div>
+    </template>
+
+    <!-- Audit Log toggle -->
+    <template x-if="report.length">
+        <div class="mt-4 flex justify-end">
+            <button
+                    @click="showAudit = !showAudit"
+                    class="px-4 py-2 rounded bg-muted hover:bg-border text-sm"
+            >
+                <span x-text="showAudit ? 'Show Summary' : 'Show Audit Log'"></span>
+            </button>
+        </div>
+    </template>
+
+    <!-- Report output -->
+    <template x-if="report.length && !showAudit">
+        <div class="mt-6 overflow-x-auto">
+            <table class="table-auto w-full border border-border text-sm">
+                <thead class="bg-muted">
+                <tr>
+                    <th class="border border-border p-2 text-left">Player</th>
+                    <th class="border border-border p-2 text-right">War Hits</th>
+                    <th class="border border-border p-2 text-right">Outside Hits</th>
+                    <th class="border border-border p-2 text-right">Effective Hits</th>
+                    <th class="border border-border p-2 text-right">Payout ($)</th>
+                </tr>
+                </thead>
+                <tbody>
+                <template x-for="row in report" :key="row.id">
+                    <tr>
+                        <td class="border border-border p-2" x-text="row.name"></td>
+                        <td class="border border-border p-2 text-right" x-text="row.warHits"></td>
+                        <td class="border border-border p-2 text-right" x-text="row.outsideHits"></td>
+                        <td class="border border-border p-2 text-right" x-text="row.effectiveHits.toFixed(2)"></td>
+                        <td class="border border-border p-2 text-right" x-text="formatCurrency(row.payout)"></td>
+                    </tr>
+                </template>
+                </tbody>
+            </table>
+        </div>
+    </template>
+
+    <!-- Audit Log output -->
+    <template x-if="showAudit && auditLog.length">
+        <div class="mt-6 overflow-x-auto">
+            <table class="table-auto w-full border border-border text-sm">
+                <thead class="bg-muted">
+                <tr>
+                    <th class="border border-border p-2 text-left">Player</th>
+                    <th class="border border-border p-2 text-left">Type</th>
+                    <th class="border border-border p-2 text-left">Opponent</th>
+                    <th class="border border-border p-2 text-left">Timestamp</th>
+                </tr>
+                </thead>
+                <tbody>
+                <template x-for="(entry, i) in auditLog" :key="i">
+                    <tr>
+                        <td class="border border-border p-2" x-text="entry.player"></td>
+                        <td class="border border-border p-2" x-text="entry.type"></td>
+                        <td class="border border-border p-2" x-text="entry.opponent"></td>
+                        <td class="border border-border p-2" x-text="entry.timestamp"></td>
+                    </tr>
+                </template>
+                </tbody>
+            </table>
+        </div>
+    </template>
+
+    <!-- Loading state -->
+    <template x-if="isLoading">
+        <div class="text-sm text-textSecondary mt-4">
+            <span class="animate-spin inline-block w-4 h-4 border-2 border-border border-t-transparent rounded-full mr-2"></span>
+            Fetching ranked wars...
+        </div>
+    </template>
+
+    <!-- Error state -->
+    <template x-if="error">
+        <div class="mt-2 p-3 rounded border border-red-400 bg-red-100 text-red-800 text-sm">
+            ❌ <div x-text="error"></div>
+        </div>
+    </template>
+
+</div>
+
+<script type="module">
+    import Alpine from 'alpinejs'
+    import { newTornApiClient, collectRankedWarHitsFromData } from './src/torn_api.js'
+
+    window.Alpine = Alpine
+
+    Alpine.data('payrollModel', () => ({
+        apiKey: null,
+        apiKeyInput: '',
+        apiClient: null,
+        rankedWars: [],
+        selectedWarId: '',
+        isLoading: false,
+        showAudit: false,
+        error: '',
+
+        // Payroll inputs
+        profit: null,
+        costs: null,
+        factionTake: null,
+        outsideHitValue: null,
+
+        // Report output
+        report: [],
+        auditLog: [],
+
+        init() {
+            this.apiKey = localStorage.getItem('tornApiKey')
+            if (this.apiKey) {
+                this.setupApiClient()
+                this.fetchRankedWars()
+            }
+        },
+
+        saveApiKey() {
+            if (!this.apiKeyInput) return
+            this.apiKey = this.apiKeyInput
+            localStorage.setItem('tornApiKey', this.apiKey)
+            this.setupApiClient()
+            this.fetchRankedWars()
+        },
+
+        setupApiClient() {
+            this.apiClient = newTornApiClient(this.apiKey, fetch, 'https://api.torn.com/v2')
+        },
+
+        async fetchRankedWars() {
+            this.isLoading = true
+            this.error = ''
+            try {
+                const factionId = 49297 // Shaggy Hi-Fidelity
+                const result = await this.apiClient.fetchRankedWars(factionId)
+                this.rankedWars = Object.entries(result.rankedwars).map(([id, war]) => ({
+                    id: war.id,
+                    start: war.start,
+                    end: war.end,
+                    factions: war.factions,
+                    opposingFactionId: war.factions.find(f => f.id !== factionId)?.id || null,
+                    opposingFactionName: war.factions.find(f => f.id !== factionId)?.name || 'Unknown Faction',
+                }))
+            } catch (err) {
+                console.error(err)
+                this.error = 'Failed to fetch ranked wars.'
+            } finally {
+                this.isLoading = false
+            }
+        },
+
+        canGenerateReport() {
+            return this.selectedWarId && this.profit != null && this.costs != null && this.factionTake != null && this.outsideHitValue != null
+        },
+
+        formatCurrency(value) {
+            return `$${value.toLocaleString()}`
+        },
+
+        async generateReport() {
+            this.isLoading = true
+            this.error = ''
+            this.report = []
+            try {
+                const factionId = 49297
+                const rankedWar = this.rankedWars.find(w => w.id == this.selectedWarId)
+                const { start, end } = rankedWar;
+                const attacks = await this.apiClient.fetchAttacksInWindow(start, end);
+                const participants = collectRankedWarHitsFromData(rankedWar, attacks, factionId);
+                this.generateAuditLog(participants)
+
+                // Compute effective hits and total
+                let totalEffectiveHits = 0
+                const playerStats = participants.map(p => {
+                    const warHits = p.warHits.length
+                    const outsideHits = p.outsideHits.length
+                    const effectiveHits = warHits + outsideHits * (this.outsideHitValue / 100)
+                    totalEffectiveHits += effectiveHits
+                    return {
+                        id: p.id,
+                        name: p.name,
+                        warHits,
+                        outsideHits,
+                        effectiveHits
+                    }
+                })
+
+                const netProfit = this.profit - this.costs
+                const factionPayout = netProfit * (this.factionTake / 100)
+                const playersPayout = netProfit - factionPayout
+
+                // Apportion payouts
+                this.report = playerStats.map(p => ({
+                    ...p,
+                    payout: totalEffectiveHits > 0 ? Math.round(playersPayout * (p.effectiveHits / totalEffectiveHits)) : 0
+                }))
+
+            } catch (err) {
+                console.error(err)
+                this.error = 'Failed to generate report.'
+            } finally {
+                this.isLoading = false
+            }
+        },
+
+        generateAuditLog(participants) {
+            this.auditLog = []
+            participants.forEach(participant => {
+                const playerName = participant.name
+
+                participant.warHits.forEach(hit => {
+                    this.auditLog.push({
+                        player: playerName,
+                        type: 'War',
+                        opponent: hit.defender?.name || `ID ${hit.defender?.id}`,
+                        timestamp: new Date(hit.started * 1000).toLocaleString() // TODO use TCT
+                    })
+                })
+
+                participant.outsideHits.forEach(hit => {
+                    this.auditLog.push({
+                        player: playerName,
+                        type: 'Outside',
+                        opponent: hit.defender?.name || `ID ${hit.defender?.id}`,
+                        timestamp: new Date(hit.started * 1000).toLocaleString() // TODO use TCT
+                    })
+                })
+            })
+        }
+    }))
+
+    Alpine.start()
+</script>
+</body>
+</html>

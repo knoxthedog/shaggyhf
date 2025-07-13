@@ -8,6 +8,7 @@ export default defineConfig({
       input: {
         main: 'index.html',
         rw_matcher: 'rw_matcher.html',
+        rw_payroll: 'rw_payroll.html',
       }
     }
   },

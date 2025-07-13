@@ -30,7 +30,7 @@ export function newTornApiClient(apiKey, fetchFn = fetch, baseUrl = 'https://api
          */
         async fetchAttacksInWindow(startTime, endTime) {
             const attacks = [];
-            let url = `${baseUrl}/faction/attacks?key=${apiKey}&from=${startTime}&to=${endTime}&limit=1000&sort=desc`;
+            let url = `${baseUrl}/faction/attacks?key=${apiKey}&from=${startTime}&to=${endTime}&sort=desc`;
 
             while (url) {
                 const response = await fetchFn(url);
@@ -38,7 +38,11 @@ export function newTornApiClient(apiKey, fetchFn = fetch, baseUrl = 'https://api
                 const data = await response.json();
                 attacks.push(...(data.attacks || []));
 
-                url = data._metadata?.links?.prev;
+                // urls are returned like this: "https://api.torn.com/v2/faction/attacks?&limit=100&sort=desc&from=1752148800&to=1752304696"
+                // so we need to add the key to the next URL
+                url = data._metadata?.links?.prev
+                    ? `${data._metadata.links.prev}&key=${apiKey}`
+                    : null;
             }
 
             return attacks;
@@ -99,7 +103,7 @@ export function collectRankedWarHitsFromData(rankedWar, attacks, myFactionId) {
 
     for (const attack of attacks) {
         // Check if this is within war window:
-        if (attack.started < start || attack.started > end) continue;
+        if (attack.started < start || (attack.started > end) && end > 0) continue;
 
         const attackerFactionId = attack.attacker?.faction?.id;
         const defenderFactionId = attack.defender?.faction?.id;
