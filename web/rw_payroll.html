@@ -51,19 +51,25 @@
                 <input
                         x-model="profitInput"
                         inputmode="numeric"
-                        class="w-full border border-border rounded p-2"
+                        @blur="validateProfit"
+                        :class="isProfitInvalid ? 'border-dangerText' : 'border-border'"
+                        class="w-full rounded p-2"
                         placeholder="Enter profit amount"
                 />
             </div>
+
             <div>
                 <label class="block mb-2 font-medium">Costs ($)</label>
                 <input
                         x-model="costsInput"
                         inputmode="numeric"
-                        class="w-full border border-border rounded p-2"
+                        @blur="validateCosts"
+                        :class="isCostsInvalid ? 'border-dangerText' : 'border-border'"
+                        class="w-full rounded p-2"
                         placeholder="Enter costs amount"
                 />
             </div>
+
             <div>
                 <label class="block mb-2 font-medium">Faction Take (%)</label>
                 <input
@@ -71,10 +77,13 @@
                         type="number"
                         min="0"
                         max="100"
-                        class="w-full border border-border rounded p-2"
+                        @blur="validateFactionTake"
+                        :class="isFactionTakeInvalid ? 'border-dangerText' : 'border-border'"
+                        class="w-full rounded p-2"
                         placeholder="e.g., 25 for 25%"
                 />
             </div>
+
             <div>
                 <label class="block mb-2 font-medium">Outside Hit Value (%)</label>
                 <input
@@ -82,10 +91,13 @@
                         type="number"
                         min="0"
                         max="100"
-                        class="w-full border border-border rounded p-2"
+                        @blur="validateOutsideHit"
+                        :class="isOutsideHitInvalid ? 'border-dangerText' : 'border-border'"
+                        class="w-full rounded p-2"
                         placeholder="e.g., 50 for 50%"
                 />
             </div>
+
         </div>
     </template>
 
@@ -218,6 +230,10 @@
         // Parsed Inputs
         profitInput: '',
         costsInput: '',
+        isProfitInvalid: false,
+        isCostsInvalid: false,
+        isFactionTakeInvalid: false,
+        isOutsideHitInvalid: false,
 
         // Report output
         report: [],
@@ -290,16 +306,24 @@
             return `$${value.toLocaleString()}`
         },
 
-        parseProfit() {
-            const cleaned = this.profitInput.replace(/,/g, '');
-            const num = parseFloat(cleaned);
-            this.profit = isNaN(num) ? null : num;
+        validateProfit() {
+            const profit = this.parseNumber(this.profitInput);
+            this.isProfitInvalid = profit === null;
         },
 
-        parseCosts() {
-            const cleaned = this.costsInput.replace(/,/g, '');
-            const num = parseFloat(cleaned);
-            this.costs = isNaN(num) ? null : num;
+        validateCosts() {
+            const costs = this.parseNumber(this.costsInput);
+            this.isCostsInvalid = costs === null;
+        },
+
+        validateFactionTake() {
+            const val = this.factionTake;
+            this.isFactionTakeInvalid = val == null || val < 0 || val > 100;
+        },
+
+        validateOutsideHit() {
+            const val = this.outsideHitValue;
+            this.isOutsideHitInvalid = val == null || val < 0 || val > 100;
         },
 
         async generateReport() {
