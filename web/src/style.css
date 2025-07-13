@@ -18,6 +18,10 @@
     --color-danger-text: #b91c1c;
     --color-success-bg: #ecfdf5;
     --color-success-text: #047857;
+    --color-info-bg: #eef2ff;           /* same as indigo-50 */
+    --color-info-border: #a5b4fc;       /* same as indigo-300 */
+    --color-info-text: #4338ca;         /* same as indigo-800 */
+    --color-info-text-strong: #312e81;  /* same as indigo-900 */
 }
 
 @media (prefers-color-scheme: dark) {
@@ -36,6 +40,10 @@
         --color-danger-text: #fca5a5;
         --color-success-bg: #064e3b;
         --color-success-text: #a7f3d0;
+        --color-info-bg: #312e81;
+        --color-info-border: #4338ca;
+        --color-info-text: #eef2ff;
+        --color-info-text-strong: #c7d2fe;
     }
 }
 
@@ -49,5 +57,15 @@
 
     input[readonly] {
         @apply bg-muted;
+    }
+}
+
+@layer components {
+    .input-compact {
+        @apply w-full border border-border rounded py-1.5 px-2 bg-background text-textPrimary placeholder-textSecondary text-sm;
+    }
+
+    .btn-compact {
+        @apply px-4 py-1.5 rounded text-sm;
     }
 }

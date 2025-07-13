@@ -18,8 +18,8 @@
         </p>
         <div class="flex space-x-2">
             <input id="api-key-input" type="text" x-model="apiKeyInput" placeholder="Enter your Torn API Key"
-                   class="flex-1 border border-border rounded p-2 bg-background text-textPrimary placeholder-textSecondary">
-            <button @click="saveApiKey" class="px-4 py-2 rounded bg-accent text-white hover:bg-accentHover">Save</button>
+                   class="flex-1 input-compact">
+            <button @click="saveApiKey" class="px-4 py-1.5 rounded bg-accent text-white hover:bg-accentHover">Save</button>
         </div>
         <template x-if="savedMessage">
             <p class="text-sm mt-2 text-successText">API key saved.</p>

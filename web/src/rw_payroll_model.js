@@ -29,6 +29,10 @@ export function payrollModel() {
         // Report output
         report: [],
         auditLog: [],
+        factionPortion: 0,
+        playersPortion: 0,
+        payPerEffectiveHit: 0, // Effective hits are war hits + (outside hits * outside hit value)
+        payPerOutsideHit: 0, // Pay per outside hit based on the outside hit value
 
         init() {
             this.apiKey = localStorage.getItem('tornApiKey')
@@ -92,7 +96,7 @@ export function payrollModel() {
         },
 
         formatCurrency(value) {
-            return `$${value.toLocaleString()}`
+            return `$${Math.round(value).toLocaleString()}`;
         },
 
         validateProfit() {
@@ -136,7 +140,7 @@ export function payrollModel() {
 
                 this.auditLog = auditLog.map(e => ({
                     ...e,
-                    timestamp: new Date(e.timestamp * 1000).toLocaleString()
+                    timestamp: new Date(e.timestamp * 1000).toISOString().replace('T', ' ').replace('Z', '')
                 }));
 
                 if (!this.showNonFacHitsInAudit) {
@@ -144,24 +148,39 @@ export function payrollModel() {
                 }
 
                 // Compute effective hits and total
-                let totalEffectiveHits = 0
+                let totalEffectiveHits = 0;
+                let totalWarHits = 0;
+                let totalOutsideHits = 0;
+
                 const playerStats = participants.map(p => {
-                    const warHits = p.warHits.length
-                    const outsideHits = p.outsideHits.length
-                    const effectiveHits = warHits + outsideHits * (this.outsideHitValue / 100)
-                    totalEffectiveHits += effectiveHits
+                    const warHits = p.warHits.length;
+                    const outsideHits = p.outsideHits.length;
+
+                    totalWarHits += warHits;
+                    totalOutsideHits += outsideHits;
+
+                    const effectiveHits = warHits + outsideHits * (this.outsideHitValue / 100);
+                    totalEffectiveHits += effectiveHits;
+
                     return {
                         id: p.id,
                         name: p.name,
                         warHits,
                         outsideHits,
                         effectiveHits
-                    }
-                })
+                    };
+                });
 
                 const netProfit = profit - costs;
                 const factionPayout = netProfit * (this.factionTake / 100);
                 const playersPayout = netProfit - factionPayout;
+                const payPerEffectiveHit = totalEffectiveHits > 0 ? playersPayout / totalEffectiveHits : 0;
+
+                // Store summary stats in model:
+                this.factionPortion = factionPayout;
+                this.playersPortion = playersPayout;
+                this.payPerEffectiveHit = payPerEffectiveHit;
+                this.payPerOutsideHit = this.payPerEffectiveHit * (this.outsideHitValue / 100);
 
                 // Apportion payouts
                 this.report = playerStats.map(p => ({
