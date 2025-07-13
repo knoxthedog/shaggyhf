@@ -143,9 +143,10 @@ describe('collectRankedWarHitsFromData', () => {
         ]
     };
 
-    it('returns empty array when no attacks', () => {
+    it('returns empty participants and auditLog when no attacks', () => {
         const result = collectRankedWarHitsFromData(rankedWar, [], myFactionId);
-        expect(result).toEqual([]);
+        expect(result.participants).toEqual([]);
+        expect(result.auditLog).toEqual([]);
     });
 
     it('ignores attacks outside war timeframe', () => {
@@ -153,70 +154,79 @@ describe('collectRankedWarHitsFromData', () => {
             started: 500,  // before war start
             attacker: { id: 10, name: 'Alice', faction: { id: myFactionId } },
             defender: { id: 20, name: 'Bob', faction: { id: opposingFactionId } },
-            chain: 123
+            chain: 123,
+            result: 'Attacked'
         }];
         const result = collectRankedWarHitsFromData(rankedWar, attacks, myFactionId);
-        expect(result).toEqual([]);
+        expect(result.participants).toEqual([]);
+        expect(result.auditLog).toHaveLength(1);
+        expect(result.auditLog[0].counted).toBe(false);
     });
 
-    it('ignores attacks not from my faction', () => {
+    it('ignores attacks not from my faction for participants but logs them', () => {
         const attacks = [{
             started: 1500,
             attacker: { id: 30, name: 'Eve', faction: { id: 999 } },  // not my faction
             defender: { id: 40, name: 'Mallory', faction: { id: myFactionId } },
-            chain: 123
+            chain: 123,
+            result: 'Attacked'
         }];
         const result = collectRankedWarHitsFromData(rankedWar, attacks, myFactionId);
-        expect(result).toEqual([]);
+        expect(result.participants).toEqual([]);
+        expect(result.auditLog).toHaveLength(1);
+        expect(result.auditLog[0].type).toBe('Other');
+        expect(result.auditLog[0].counted).toBe(false);
     });
 
-    it('classifies war hits correctly', () => {
+    it('classifies war hits correctly and only counts successful results', () => {
         const attacks = [{
             started: 1500,
             attacker: { id: 10, name: 'Alice', faction: { id: myFactionId } },
             defender: { id: 20, name: 'Bob', faction: { id: opposingFactionId } },
-            chain: 123
+            chain: 123,
+            result: 'Attacked'
         }];
         const result = collectRankedWarHitsFromData(rankedWar, attacks, myFactionId);
-        expect(result).toHaveLength(1);
-        expect(result[0].warHits).toHaveLength(1);
-        expect(result[0].outsideHits).toHaveLength(0);
+        expect(result.participants).toHaveLength(1);
+        expect(result.participants[0].warHits).toHaveLength(1);
+        expect(result.participants[0].outsideHits).toHaveLength(0);
+
+        const auditEntry = result.auditLog.find(e => e.player === 'Alice');
+        expect(auditEntry.type).toBe('War');
+        expect(auditEntry.counted).toBe(true);
+    });
+
+    it('ignores unsuccessful war hits', () => {
+        const attacks = [{
+            started: 1500,
+            attacker: { id: 10, name: 'Alice', faction: { id: myFactionId } },
+            defender: { id: 20, name: 'Bob', faction: { id: opposingFactionId } },
+            chain: 123,
+            result: 'Escape'
+        }];
+        const result = collectRankedWarHitsFromData(rankedWar, attacks, myFactionId);
+        expect(result.participants).toHaveLength(0);
+
+        const auditEntry = result.auditLog.find(e => e.player === 'Alice');
+        expect(auditEntry.type).toBe('War');
+        expect(auditEntry.counted).toBe(false);
     });
 
     it('classifies outside hits correctly', () => {
         const attacks = [{
             started: 1500,
             attacker: { id: 10, name: 'Alice', faction: { id: myFactionId } },
-            defender: { id: 99, name: 'OtherGuy', faction: { id: 999 } },  // not opposing faction
-            chain: 456
+            defender: { id: 99, name: 'OtherGuy', faction: { id: 999 } },
+            chain: 456,
+            result: 'Hospitalized'
         }];
         const result = collectRankedWarHitsFromData(rankedWar, attacks, myFactionId);
-        expect(result).toHaveLength(1);
-        expect(result[0].warHits).toHaveLength(0);
-        expect(result[0].outsideHits).toHaveLength(1);
-    });
+        expect(result.participants).toHaveLength(1);
+        expect(result.participants[0].outsideHits).toHaveLength(1);
 
-    it('groups multiple attacks by attacker', () => {
-        const attacks = [
-            {
-                started: 1500,
-                attacker: { id: 10, name: 'Alice', faction: { id: myFactionId } },
-                defender: { id: 20, name: 'Bob', faction: { id: opposingFactionId } },
-                chain: 1
-            },
-            {
-                started: 1600,
-                attacker: { id: 10, name: 'Alice', faction: { id: myFactionId } },
-                defender: { id: 99, name: 'Charlie', faction: { id: 999 } },
-                chain: 2
-            }
-        ];
-        const result = collectRankedWarHitsFromData(rankedWar, attacks, myFactionId);
-        expect(result).toHaveLength(1);
-        expect(result[0].id).toBe(10);
-        expect(result[0].name).toBe('Alice');
-        expect(result[0].warHits).toHaveLength(1);
-        expect(result[0].outsideHits).toHaveLength(1);
+        const auditEntry = result.auditLog.find(e => e.player === 'Alice');
+        expect(auditEntry.type).toBe('Outside');
+        expect(auditEntry.counted).toBe(true);
     });
 
     it('ignores non-chain, non-war hits', () => {
@@ -224,23 +234,64 @@ describe('collectRankedWarHitsFromData', () => {
             started: 1500,
             attacker: { id: 10, name: 'Alice', faction: { id: myFactionId } },
             defender: { id: 999, name: 'Neutral', faction: { id: 999 } },
-            chain: null
+            chain: null,
+            result: 'Attacked'
         }];
         const result = collectRankedWarHitsFromData(rankedWar, attacks, myFactionId);
-        expect(result).toEqual([]);
+        expect(result.participants).toEqual([]);
+        expect(result.auditLog[0].type).toBe('Other');
+        expect(result.auditLog[0].counted).toBe(false);
+    });
+
+    it('captures opposing faction attacking us in audit log only', () => {
+        const attacks = [{
+            started: 1500,
+            attacker: { id: 50, name: 'Enemy', faction: { id: opposingFactionId } },
+            defender: { id: 10, name: 'Alice', faction: { id: myFactionId } },
+            chain: 123,
+            result: 'Mugged'
+        }];
+        const result = collectRankedWarHitsFromData(rankedWar, attacks, myFactionId);
+        expect(result.participants).toEqual([]);
+        expect(result.auditLog[0].type).toBe('War');
+        expect(result.auditLog[0].counted).toBe(false);
+    });
+
+    it('groups multiple attacks correctly by attacker', () => {
+        const attacks = [
+            {
+                started: 1500,
+                attacker: { id: 10, name: 'Alice', faction: { id: myFactionId } },
+                defender: { id: 20, name: 'Bob', faction: { id: opposingFactionId } },
+                chain: 1,
+                result: 'Attacked'
+            },
+            {
+                started: 1600,
+                attacker: { id: 10, name: 'Alice', faction: { id: myFactionId } },
+                defender: { id: 99, name: 'Charlie', faction: { id: 999 } },
+                chain: 2,
+                result: 'Attacked'
+            }
+        ];
+        const result = collectRankedWarHitsFromData(rankedWar, attacks, myFactionId);
+        expect(result.participants).toHaveLength(1);
+        expect(result.participants[0].warHits).toHaveLength(1);
+        expect(result.participants[0].outsideHits).toHaveLength(1);
     });
 
     it('throws if opposing faction not found', () => {
         const badRankedWar = {
             start: 1000,
             end: 2000,
-            factions: [{ id: myFactionId, name: 'MyFaction' }]  // no opponent
+            factions: [{ id: myFactionId, name: 'MyFaction' }]
         };
         const attacks = [{
             started: 1500,
             attacker: { id: 10, name: 'Alice', faction: { id: myFactionId } },
             defender: { id: 20, name: 'Bob', faction: { id: 2 } },
-            chain: 123
+            chain: 123,
+            result: 'Attacked'
         }];
         expect(() => collectRankedWarHitsFromData(badRankedWar, attacks, myFactionId))
             .toThrow('Opposing faction not found in rankedWar.factions');

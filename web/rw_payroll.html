@@ -49,9 +49,8 @@
             <div>
                 <label class="block mb-2 font-medium">Profit ($)</label>
                 <input
-                        x-model.number="profit"
-                        type="number"
-                        min="0"
+                        x-model="profitInput"
+                        inputmode="numeric"
                         class="w-full border border-border rounded p-2"
                         placeholder="Enter profit amount"
                 />
@@ -59,9 +58,8 @@
             <div>
                 <label class="block mb-2 font-medium">Costs ($)</label>
                 <input
-                        x-model.number="costs"
-                        type="number"
-                        min="0"
+                        x-model="costsInput"
+                        inputmode="numeric"
                         class="w-full border border-border rounded p-2"
                         placeholder="Enter costs amount"
                 />
@@ -92,10 +90,11 @@
     </template>
 
     <!-- Generate Report button -->
-    <template x-if="canGenerateReport()">
+    <template x-if="selectedWarId">
         <div class="mt-4">
             <button
                     @click="generateReport"
+                    :disabled="!canGenerateReport()"
                     class="bg-accent text-white px-4 py-2 rounded hover:bg-accentHover disabled:opacity-50"
             >
                 Generate Report
@@ -149,18 +148,25 @@
             <table class="table-auto w-full border border-border text-sm">
                 <thead class="bg-muted">
                 <tr>
-                    <th class="border border-border p-2 text-left">Player</th>
+                    <th class="border border-border p-2 text-left">Attacker</th>
                     <th class="border border-border p-2 text-left">Type</th>
                     <th class="border border-border p-2 text-left">Opponent</th>
+                    <th class="border border-border p-2 text-left">Result</th>
+                    <th class="border border-border p-2 text-left">Counted</th>
                     <th class="border border-border p-2 text-left">Timestamp</th>
                 </tr>
                 </thead>
                 <tbody>
                 <template x-for="(entry, i) in auditLog" :key="i">
-                    <tr>
-                        <td class="border border-border p-2" x-text="entry.player"></td>
+                    <tr :class="{
+                      'bg-successBg text-successText': entry.counted,
+                      'bg-dangerBg text-dangerText': !entry.isAttackerFacMember && !entry.counted
+                    }">
+                    <td class="border border-border p-2" x-text="entry.player"></td>
                         <td class="border border-border p-2" x-text="entry.type"></td>
                         <td class="border border-border p-2" x-text="entry.opponent"></td>
+                        <td class="border border-border p-2" x-text="entry.result"></td>
+                        <td class="border border-border p-2" x-text="entry.counted ? 'Yes' : 'No'"></td>
                         <td class="border border-border p-2" x-text="entry.timestamp"></td>
                     </tr>
                 </template>
@@ -200,6 +206,7 @@
         selectedWarId: '',
         isLoading: false,
         showAudit: false,
+        showNonFacHitsInAudit: false,
         error: '',
 
         // Payroll inputs
@@ -207,6 +214,10 @@
         costs: null,
         factionTake: null,
         outsideHitValue: null,
+
+        // Parsed Inputs
+        profitInput: '',
+        costsInput: '',
 
         // Report output
         report: [],
@@ -255,24 +266,72 @@
         },
 
         canGenerateReport() {
-            return this.selectedWarId && this.profit != null && this.costs != null && this.factionTake != null && this.outsideHitValue != null
+            const profit = this.parseNumber(this.profitInput);
+            const costs = this.parseNumber(this.costsInput);
+            return (
+                this.selectedWarId &&
+                profit != null &&
+                costs != null &&
+                this.factionTake != null &&
+                this.outsideHitValue != null
+            );
+        },
+
+        parseNumber(value) {
+            if (!value) return null;
+            const cleaned = value
+                .replace(/^\s*\$/, '')  // remove optional leading $ and whitespace
+                .replace(/,/g, '');     // remove commas
+            const num = parseFloat(cleaned);
+            return isNaN(num) ? null : num;
         },
 
         formatCurrency(value) {
             return `$${value.toLocaleString()}`
         },
 
+        parseProfit() {
+            const cleaned = this.profitInput.replace(/,/g, '');
+            const num = parseFloat(cleaned);
+            this.profit = isNaN(num) ? null : num;
+        },
+
+        parseCosts() {
+            const cleaned = this.costsInput.replace(/,/g, '');
+            const num = parseFloat(cleaned);
+            this.costs = isNaN(num) ? null : num;
+        },
+
         async generateReport() {
             this.isLoading = true
             this.error = ''
             this.report = []
+
+            const profit = this.parseNumber(this.profitInput);
+            const costs = this.parseNumber(this.costsInput);
+
+            if (profit == null || costs == null) {
+                this.error = 'Invalid input values';
+                this.isLoading = false;
+                return;
+            }
+
             try {
                 const factionId = 49297
                 const rankedWar = this.rankedWars.find(w => w.id == this.selectedWarId)
                 const { start, end } = rankedWar;
                 const attacks = await this.apiClient.fetchAttacksInWindow(start, end);
-                const participants = collectRankedWarHitsFromData(rankedWar, attacks, factionId);
-                this.generateAuditLog(participants)
+                const { participants, auditLog } = collectRankedWarHitsFromData(rankedWar, attacks, factionId);
+
+                // Translate audit log timestamps to readable format
+                this.auditLog = auditLog.map(e => ({
+                    ...e,
+                    timestamp: new Date(e.timestamp * 1000).toLocaleString()
+                }));
+
+                if (!this.showNonFacHitsInAudit) {
+                    this.auditLog = this.auditLog.filter(e => e.isAttackerFacMember);
+                }
 
                 // Compute effective hits and total
                 let totalEffectiveHits = 0
@@ -290,9 +349,9 @@
                     }
                 })
 
-                const netProfit = this.profit - this.costs
-                const factionPayout = netProfit * (this.factionTake / 100)
-                const playersPayout = netProfit - factionPayout
+                const netProfit = profit - costs;
+                const factionPayout = netProfit * (this.factionTake / 100);
+                const playersPayout = netProfit - factionPayout;
 
                 // Apportion payouts
                 this.report = playerStats.map(p => ({
@@ -306,31 +365,6 @@
             } finally {
                 this.isLoading = false
             }
-        },
-
-        generateAuditLog(participants) {
-            this.auditLog = []
-            participants.forEach(participant => {
-                const playerName = participant.name
-
-                participant.warHits.forEach(hit => {
-                    this.auditLog.push({
-                        player: playerName,
-                        type: 'War',
-                        opponent: hit.defender?.name || `ID ${hit.defender?.id}`,
-                        timestamp: new Date(hit.started * 1000).toLocaleString() // TODO use TCT
-                    })
-                })
-
-                participant.outsideHits.forEach(hit => {
-                    this.auditLog.push({
-                        player: playerName,
-                        type: 'Outside',
-                        opponent: hit.defender?.name || `ID ${hit.defender?.id}`,
-                        timestamp: new Date(hit.started * 1000).toLocaleString() // TODO use TCT
-                    })
-                })
-            })
         }
     }))
 

@@ -16,7 +16,11 @@ export default {
                 accentHover: 'var(--color-accent-hover)',
                 muted: 'var(--color-muted)',
                 warningBg: 'var(--color-warning-bg)',
-                warningText: 'var(--color-warning-text)'
+                warningText: 'var(--color-warning-text)',
+                dangerBg: 'var(--color-danger-bg)',
+                dangerText: 'var(--color-danger-text)',
+                successBg: 'var(--color-success-bg)',
+                successText: 'var(--color-success-text)',
             }
         }
     },

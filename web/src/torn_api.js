@@ -50,46 +50,60 @@ export function newTornApiClient(apiKey, fetchFn = fetch, baseUrl = 'https://api
     };
 }
 
-export async function collectRankedWarHits(apiClient, rankedWar, factionId) {
-    const { start, end } = rankedWar;
-    const attacks = await apiClient.fetchAttacksInWindow(start, end);
-    return collectRankedWarHitsFromData(rankedWar, attacks, factionId);
-}
-
 /**
- * Collates and categorizes attacks made during a ranked war into war hits and outside hits,
- * grouped by attacker.
+ * Collates and categorizes attacks made during a ranked war into "war hits" and "outside hits",
+ * grouped by attacker. Also generates a detailed audit log of all attacks during the war window.
  *
- * A "war hit" is defined as:
- *   - An attack initiated by `myFactionId`
- *   - The defender belongs to the opposing faction in the ranked war
- *   - The attack occurred during the ranked war time window
+ * Definitions:
  *
- * An "outside hit" is defined as:
- *   - An attack initiated by `myFactionId`
- *   - The defender does NOT belong to the opposing faction
- *   - The attack occurred during the ranked war time window
- *   - The attack is part of a chain (chain !== null/undefined)
+ * - A "war hit" is defined as:
+ *   - Attacker belongs to `myFactionId`
+ *   - Defender belongs to the opposing faction in the ranked war
+ *   - Attack occurred during the ranked war time window
  *
- * All other attacks (e.g., outside time window, not initiated by `myFactionId`, non-chain outside hits)
- * are ignored.
+ * - An "outside hit" is defined as:
+ *   - Attacker belongs to `myFactionId`
+ *   - Defender does NOT belong to the opposing faction
+ *   - Attack occurred during the ranked war time window
+ *   - Attack is part of a chain (`attack.chain` not null/undefined)
  *
- * @param {Object} rankedWar - The ranked war object, as returned from `/faction/{id}/rankedwars`,
+ * - Additional audit-only rows:
+ *   - If attacker belongs to the opposing faction and defender belongs to `myFactionId`,
+ *     the attack is labeled as "War" (but excluded from payout calculations).
+ *
+ *   - All other attacks within the war window are labeled as "Other" and excluded from payout.
+ *
+ * Returns an object containing:
+ *  - `participants`: Array of grouped attacker objects for payroll calculation.
+ *  - `auditLog`: Array of flat audit records for reporting and diagnostics.
+ *
+ * @param {Object} rankedWar - The ranked war object from `/faction/{id}/rankedwars`,
  *                              containing `start`, `end`, and `factions` fields.
  * @param {Array<Object>} attacks - Array of attack records from `/faction/attacks` or `/faction/attacksfull`.
- * @param {number} myFactionId - The ID of the faction making the request (attacker faction).
- * @returns {Array<Object>} - Array of objects, each representing an attacker with the structure:
- *   [
+ * @param {number} myFactionId - The ID of the "owning" faction (the one requesting payroll).
+ * @returns {Object} An object with two properties:
+ *   - `participants`: Array of attacker summary objects:
+ *     [
+ *       {
+ *         id: number,           // Attacker player ID
+ *         name: string,         // Attacker player name
+ *         warHits: Array,       // Successful attacks on opposing faction members
+ *         outsideHits: Array    // Successful chain attacks on non-opposing faction members
+ *       },
+ *       ...
+ *     ]
+ *   - `auditLog`: Array of audit entries, each with:
  *     {
- *       id: number,           // Attacker player ID
- *       name: string,         // Attacker player name
- *       warHits: Array,       // Attacks against opposing faction members
- *       outsideHits: Array    // Chain attacks during war window but NOT against opposing faction
- *     },
- *     ...
- *   ]
+ *       player: string,        // Attacker name
+ *       type: string,          // "War", "Outside", "Other"
+ *       result: string,        // Attack result string
+ *       opponent: string,      // Defender name or ID fallback
+ *       timestamp: number,     // `started` timestamp (Unix epoch seconds)
+ *       counted: boolean,      // true if attack counted towards payout
+ *       isAttackerFacMember: boolean  // true if attacker was a member of `myFactionId`
+ *     }
  *
- * @throws {Error} If the opposing faction cannot be determined from the ranked war `factions` array.
+ * @throws {Error} If the opposing faction cannot be determined from the ranked war's `factions` array.
  */
 export function collectRankedWarHitsFromData(rankedWar, attacks, myFactionId) {
     const { start, end, factions } = rankedWar;
@@ -99,39 +113,90 @@ export function collectRankedWarHitsFromData(rankedWar, attacks, myFactionId) {
     }
     const opposingFactionId = opposingFaction.id;
 
+    const successfulResults = ['Attacked', 'Hospitalized', 'Mugged'];
+
     const grouped = new Map();
+    const auditLog = [];
 
     for (const attack of attacks) {
-        // Check if this is within war window:
-        if (attack.started < start || (attack.started > end) && end > 0) continue;
+        const attackTime = attack.started;
 
+        const attackerId = attack.attacker?.id;
+        const attackerName = attack.attacker?.name || `ID ${attackerId}`;
         const attackerFactionId = attack.attacker?.faction?.id;
+
+        const defenderId = attack.defender?.id;
+        const defenderName = attack.defender?.name || `ID ${defenderId}`;
         const defenderFactionId = attack.defender?.faction?.id;
 
-        if (attackerFactionId !== myFactionId) continue;  // Only count our attacks
+        const isWithinWindow = attackTime >= start && (attackTime <= end || end === 0);
 
-        const attackerId = attack.attacker.id;
-        const attackerName = attack.attacker.name;
+        let type = '';
+        let counted = false;
+        const isAttackerFacMember = attackerFactionId === myFactionId;
 
-        const isWarHit = defenderFactionId === opposingFactionId;
-        const isChain = attack.chain !== null && attack.chain !== undefined;
+        if (isWithinWindow) {
+            const isHitOnOpposingFaction = isAttackerFacMember && defenderFactionId === opposingFactionId;
+            const isOutsideHit = isAttackerFacMember && attack.chain && defenderFactionId !== opposingFactionId;
+            const isOpposingFactionHitUs = attackerFactionId === opposingFactionId && defenderFactionId === myFactionId;
+            const isSuccessful = successfulResults.includes(attack.result);
 
-        // Initialize grouping if not present:
-        if ((isWarHit || isChain) && !grouped.has(attackerId)) {
-            grouped.set(attackerId, {
-                id: attackerId,
-                name: attackerName,
-                warHits: [],
-                outsideHits: []
-            });
+            if (isHitOnOpposingFaction) {
+                type = 'War';
+                counted = isSuccessful;
+
+                if (counted) {
+                    if (!grouped.has(attackerId)) {
+                        grouped.set(attackerId, {
+                            id: attackerId,
+                            name: attackerName,
+                            warHits: [],
+                            outsideHits: []
+                        });
+                    }
+                    grouped.get(attackerId).warHits.push(attack);
+                }
+
+            } else if (isOutsideHit) {
+                type = 'Outside';
+                counted = isSuccessful;
+
+                if (counted) {
+                    if (!grouped.has(attackerId)) {
+                        grouped.set(attackerId, {
+                            id: attackerId,
+                            name: attackerName,
+                            warHits: [],
+                            outsideHits: []
+                        });
+                    }
+                    grouped.get(attackerId).outsideHits.push(attack);
+                }
+
+            } else if (isOpposingFactionHitUs) {
+                type = 'War';
+                counted = false;
+
+            } else {
+                type = 'Other';
+                counted = false;
+
+            }
         }
 
-        if (isWarHit) {
-            grouped.get(attackerId).warHits.push(attack);
-        } else if (isChain) {
-            grouped.get(attackerId).outsideHits.push(attack);
-        }
+        auditLog.push({
+            player: attackerName,
+            type,
+            result: attack.result,
+            opponent: defenderName,
+            timestamp: attackTime,
+            counted,
+            isAttackerFacMember,
+        });
     }
 
-    return Array.from(grouped.values());
+    return {
+        participants: Array.from(grouped.values()),
+        auditLog
+    };
 }
