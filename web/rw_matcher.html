@@ -17,13 +17,13 @@
             <textarea
                     x-model="input"
                     x-debounced-persist
-                    class="w-full h-48 p-3 border border-border rounded resize-none mb-4"
+                    class="w-full h-48 border border-border rounded py-1.5 px-2 resize-none mb-4 bg-background text-textPrimary placeholder-textSecondary"
                     placeholder="Paste spy reports here..."
             ></textarea>
 
             <div class="flex gap-4 mb-4">
-                <button @click="parseSpies()" :disabled="!hasSpyInput()" class="bg-accent text-white px-4 py-2 rounded hover:bg-accentHover disabled:opacity-50">Read Spies</button>
-                <button @click="clearSpies()" class="bg-muted text-textPrimary px-4 py-2 rounded hover:bg-border">Clear</button>
+                <button @click="parseSpies()" :disabled="!hasSpyInput()" class="btn-compact bg-accent text-white hover:bg-accentHover disabled:opacity-50">Read Spies</button>
+                <button @click="clearSpies()" class="btn-compact bg-muted text-textPrimary hover:bg-border">Clear</button>
             </div>
 
             <template x-if="spies.length">
@@ -48,13 +48,13 @@
                         <tbody>
                         <template x-for="(spy, i) in spies" :key="i">
                             <tr>
-                                <td class="border border-border p-2"><input x-model="spy.name" x-debounced-persist class="w-full border border-border rounded p-1"/></td>
-                                <td class="border border-border p-2"><input x-model="spy.level" x-debounced-persist class="w-full border border-border rounded p-1"/></td>
-                                <td class="border border-border p-2"><input x-model="spy.speed" x-debounced-persist :class="isInvalidStat(spy, 'speed') ? 'border-dangerText' : 'border-border'" class="w-full border rounded p-1"/></td>
-                                <td class="border border-border p-2"><input x-model="spy.strength" x-debounced-persist :class="isInvalidStat(spy, 'strength') ? 'border-dangerText' : 'border-border'" class="w-full border rounded p-1"/></td>
-                                <td class="border border-border p-2"><input x-model="spy.defense" x-debounced-persist :class="isInvalidStat(spy, 'defense') ? 'border-dangerText' : 'border-border'" class="w-full border rounded p-1"/></td>
-                                <td class="border border-border p-2"><input x-model="spy.dexterity" x-debounced-persist :class="isInvalidStat(spy, 'dexterity') ? 'border-dangerText' : 'border-border'" class="w-full border rounded p-1"/></td>
-                                <td class="border border-border p-2"><input class="w-full border border-border rounded p-1 bg-background text-textPrimary" :value="formatStatTotal(spy)" readonly/></td>
+                                <td class="border border-border p-2"><input x-model="spy.name" x-debounced-persist class="w-full input-compact"/></td>
+                                <td class="border border-border p-2"><input x-model="spy.level" x-debounced-persist class="w-full input-compact"/></td>
+                                <td class="border border-border p-2"><input x-model="spy.speed" x-debounced-persist  :class="['input-compact', isInvalidStat(spy, 'speed') ? 'border-dangerText' : 'border-border']"/></td>
+                                <td class="border border-border p-2"><input x-model="spy.strength" x-debounced-persist  :class="['input-compact', isInvalidStat(spy, 'strength') ? 'border-dangerText' : 'border-border']"/></td>
+                                <td class="border border-border p-2"><input x-model="spy.defense" x-debounced-persist  :class="['input-compact', isInvalidStat(spy, 'defense') ? 'border-dangerText' : 'border-border']"/></td>
+                                <td class="border border-border p-2"><input x-model="spy.dexterity" x-debounced-persist  :class="['input-compact', isInvalidStat(spy, 'dexterity') ? 'border-dangerText' : 'border-border']"/></td>
+                                <td class="border border-border p-2"><input class="w-full input-compact" :value="formatStatTotal(spy)" readonly/></td>
                             </tr>
                         </template>
                         </tbody>
@@ -74,9 +74,9 @@
                 </a>
             </label>
 
-            <input x-model="apiKey" x-debounced-persist type="text" class="w-full border border-border rounded p-2 mb-4" placeholder="Paste your TornStats API key here" />
+            <input x-model="apiKey" x-debounced-persist type="text" class="w-full input-compact mb-4" placeholder="Paste your TornStats API key here" />
 
-            <button @click="fetchFactionStats" :disabled="!hasValidAPIKey()" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 disabled:opacity-50">
+            <button @click="fetchFactionStats" :disabled="!hasValidAPIKey()" class="btn-compact bg-accent text-white hover:bg-accentHover disabled:opacity-50">
                 Fetch Faction Stats
             </button>
 
@@ -86,9 +86,9 @@
             </div>
 
             <template x-if="fetchMembersError">
-                <div class="mt-2 p-3 rounded border border-red-400 bg-red-100 text-red-800 text-sm">
+                <div class="mt-2 p-3 rounded border border-dangerText bg-dangerBg text-dangerText text-sm">
                     ❌ <div x-text="fetchMembersError"></div>
-                    <div class="text-xs text-red-700 mt-1" x-text="fetchMembersErrorDetail"></div>
+                    <div class="text-xs mt-1" x-text="fetchMembersErrorDetail"></div>
                 </div>
             </template>
 
@@ -119,7 +119,7 @@
                         </thead>
                         <tbody>
                         <template x-for="(member, i) in fetchedMembers" :key="i">
-                            <tr :class="hasInvalidStats([member]) ? 'bg-red-50' : ''">
+                            <tr :class="hasInvalidStats([member]) ? 'bg-dangerBg' : ''">
                                 <td class="border border-border p-2" x-text="member.name"></td>
                                 <td class="border border-border p-2" x-text="member.level"></td>
                                 <td class="border border-border p-2" x-text="member.speed"></td>
@@ -144,9 +144,9 @@
             <template x-if="matches.length">
                 <div class="space-y-6">
 
-                    <div class="mb-6 p-4 border-2 border-indigo-300 rounded-lg bg-indigo-50 shadow-sm">
-                        <h3 class="font-semibold text-md mb-2 text-indigo-800">Match Display Settings</h3>
-                        <div class="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm text-indigo-900">
+                    <div class="mb-6 p-4 border-2 border-infoBorder rounded-lg bg-infoBg shadow-sm">
+                        <h3 class="font-semibold text-md mb-2 text-infoText">Match Display Settings</h3>
+                        <div class="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm text-infoTextStrong">
                             <label class="flex items-center gap-2">
                                 <input type="checkbox" x-model="showImpossibleMatches" @change="filterMatches()" />
                                 Impossible Matches
@@ -175,7 +175,7 @@
                     </div>
 
                     <div class="flex justify-end">
-                        <button @click="copyMatchesToClipboard()" class="px-4 py-2 bg-accent text-white rounded hover:bg-accentHover">
+                        <button @click="copyMatchesToClipboard()" class="btn-compact bg-accent text-white hover:bg-accentHover">
                             📋 Copy Plain Text
                         </button>
                     </div>
@@ -231,7 +231,7 @@
 
     <div class="fixed bottom-0 left-0 right-0 bg-surface border-t border-border shadow-md px-6 py-3 z-50">
         <div class="max-w-4xl mx-auto flex items-center justify-between">
-            <button @click="prevStep()" class="px-4 py-2 rounded bg-muted hover:bg-border disabled:opacity-50">← Back</button>
+            <button @click="prevStep()" class="btn-compact bg-muted hover:bg-border disabled:opacity-50">← Back</button>
 
             <div class="flex items-center gap-2">
                 <template x-for="n in 3">
@@ -243,7 +243,7 @@
                 </template>
             </div>
 
-            <button @click="nextStep()" :disabled="!canProceed() || step === 3" class="px-4 py-2 rounded bg-accent text-white hover:bg-accentHover disabled:opacity-50">Next →</button>
+            <button @click="nextStep()" :disabled="!canProceed() || step === 3" class="btn-compact bg-accent text-white hover:bg-accentHover disabled:opacity-50">Next →</button>
         </div>
     </div>
 

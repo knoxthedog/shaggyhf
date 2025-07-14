@@ -21,8 +21,12 @@ export default {
                 dangerText: 'var(--color-danger-text)',
                 successBg: 'var(--color-success-bg)',
                 successText: 'var(--color-success-text)',
-            }
-        }
+                infoBg: 'var(--color-info-bg)',
+                infoBorder: 'var(--color-info-border)',
+                infoText: 'var(--color-info-text)',
+                infoTextStrong: 'var(--color-info-text-strong)',
+            },
+        },
     },
     plugins: []
 }
