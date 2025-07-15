@@ -46,7 +46,8 @@ jobs:
 
       - name: Build with Vite
         working-directory: ./web
-        run: npm run build
+        # Set the base path for the Vite build when deploying to a subdirectory (e.g., knoxthedog.github.io/shaggyhf)
+        run: BASE_PATH="/shaggyhf/" npm run build
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
