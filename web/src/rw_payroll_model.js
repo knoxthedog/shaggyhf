@@ -1,4 +1,4 @@
-import { newTornApiClient, collectRankedWarHitsFromData } from './torn_api.js'
+import {newTornApiClient, collectRankedWarHitsFromData} from './torn_api.js'
 
 const FACTION_ID = 49297; // Shaggy Hi-Fidelity
 
@@ -14,25 +14,24 @@ export function payrollModel() {
         showNonFacHitsInAudit: false,
         error: '',
 
-        // Inputs
-        profit: null,
-        costs: null,
-        factionTake: null,
-        outsideHitValue: null,
+        // Inputs (TODO persist these in localStorage)
+        warHitTaxInput: '',
+        outsideHitTaxInput: '',
         profitInput: '',
         costsInput: '',
+
+        // Input validation flags
         isProfitInvalid: false,
         isCostsInvalid: false,
-        isFactionTakeInvalid: false,
-        isOutsideHitInvalid: false,
+        isWarHitTaxInvalid: false,
+        isOutsideHitTaxInvalid: false,
 
         // Report output
         report: [],
         auditLog: [],
-        factionPortion: 0,
-        playersPortion: 0,
-        payPerEffectiveHit: 0, // Effective hits are war hits + (outside hits * outside hit value)
-        payPerOutsideHit: 0, // Pay per outside hit based on the outside hit value
+        totalTax: 0,
+        payPerWarHit: 0,
+        payPerOutsideHit: 0,
 
         init() {
             this.apiKey = localStorage.getItem('tornApiKey')
@@ -79,18 +78,25 @@ export function payrollModel() {
         canGenerateReport() {
             const profit = this.parseNumber(this.profitInput);
             const costs = this.parseNumber(this.costsInput);
+            const warHitTax = this.parseNumber(this.warHitTaxInput);
+            const outsideHitTax = this.parseNumber(this.outsideHitTaxInput);
             return (
                 this.selectedWarId &&
                 profit != null &&
                 costs != null &&
-                this.factionTake != null &&
-                this.outsideHitValue != null
+                warHitTax != null &&
+                outsideHitTax != null
             );
         },
 
         parseNumber(value) {
-            if (!value) return null;
-            const cleaned = value.replace(/^\s*\$/, '').replace(/,/g, '');
+            if (typeof value === 'number' && !isNaN(value)) {
+                return value;
+            }
+            if (!value || typeof value !== 'string') {
+                return null;
+            }
+            const cleaned = value.trim().replace(/^\$/, '').replace(/,/g, '');
             const num = parseFloat(cleaned);
             return isNaN(num) ? null : num;
         },
@@ -101,22 +107,22 @@ export function payrollModel() {
 
         validateProfit() {
             const profit = this.parseNumber(this.profitInput);
-            this.isProfitInvalid = profit === null;
+            this.isProfitInvalid = profit == null || profit < 0;
         },
 
         validateCosts() {
             const costs = this.parseNumber(this.costsInput);
-            this.isCostsInvalid = costs === null;
+            this.isCostsInvalid = costs == null || costs < 0;
         },
 
-        validateFactionTake() {
-            const val = this.factionTake;
-            this.isFactionTakeInvalid = val == null || val < 0 || val > 100;
+        validateWarHitTax() {
+            const val = this.parseNumber(this.warHitTaxInput);
+            this.isWarHitTaxInvalid = val == null || val < 0 || val > 100;
         },
 
-        validateOutsideHit() {
-            const val = this.outsideHitValue;
-            this.isOutsideHitInvalid = val == null || val < 0 || val > 100;
+        validateOutsideHitTax() {
+            const val = this.parseNumber(this.outsideHitTaxInput);
+            this.isOutsideHitTaxInvalid = val == null || val < 0 || val > 100;
         },
 
         async generateReport() {
@@ -124,19 +130,11 @@ export function payrollModel() {
             this.error = ''
             this.report = []
 
-            const profit = this.parseNumber(this.profitInput);
-            const costs = this.parseNumber(this.costsInput);
-            if (profit == null || costs == null) {
-                this.error = 'Invalid input values';
-                this.isLoading = false;
-                return;
-            }
-
             try {
-                const rankedWar = this.rankedWars.find(w => w.id == this.selectedWarId)
-                const { start, end } = rankedWar;
+                const rankedWar = this.rankedWars.find(w => `${w.id}` === this.selectedWarId)
+                const {start, end} = rankedWar;
                 const attacks = await this.apiClient.fetchAttacksInWindow(start, end);
-                const { participants, auditLog } = collectRankedWarHitsFromData(rankedWar, attacks, FACTION_ID);
+                const {participants, auditLog} = collectRankedWarHitsFromData(rankedWar, attacks, FACTION_ID);
 
                 this.auditLog = auditLog.map(e => ({
                     ...e,
@@ -147,46 +145,7 @@ export function payrollModel() {
                     this.auditLog = this.auditLog.filter(e => e.isAttackerFacMember);
                 }
 
-                // Compute effective hits and total
-                let totalEffectiveHits = 0;
-                let totalWarHits = 0;
-                let totalOutsideHits = 0;
-
-                const playerStats = participants.map(p => {
-                    const warHits = p.warHits.length;
-                    const outsideHits = p.outsideHits.length;
-
-                    totalWarHits += warHits;
-                    totalOutsideHits += outsideHits;
-
-                    const effectiveHits = warHits + outsideHits * (this.outsideHitValue / 100);
-                    totalEffectiveHits += effectiveHits;
-
-                    return {
-                        id: p.id,
-                        name: p.name,
-                        warHits,
-                        outsideHits,
-                        effectiveHits
-                    };
-                });
-
-                const netProfit = profit - costs;
-                const factionPayout = netProfit * (this.factionTake / 100);
-                const playersPayout = netProfit - factionPayout;
-                const payPerEffectiveHit = totalEffectiveHits > 0 ? playersPayout / totalEffectiveHits : 0;
-
-                // Store summary stats in model:
-                this.factionPortion = factionPayout;
-                this.playersPortion = playersPayout;
-                this.payPerEffectiveHit = payPerEffectiveHit;
-                this.payPerOutsideHit = this.payPerEffectiveHit * (this.outsideHitValue / 100);
-
-                // Apportion payouts
-                this.report = playerStats.map(p => ({
-                    ...p,
-                    payout: totalEffectiveHits > 0 ? Math.round(playersPayout * (p.effectiveHits / totalEffectiveHits)) : 0
-                }))
+                this.generateReportFromHitsData(participants);
 
             } catch (err) {
                 console.error(err)
@@ -196,12 +155,63 @@ export function payrollModel() {
             }
         },
 
+        generateReportFromHitsData(hitsByPlayer) {
+            this.error = ''
+            this.report = []
+
+            const profit = this.parseNumber(this.profitInput);
+            const costs = this.parseNumber(this.costsInput);
+            const warHitTax = this.parseNumber(this.warHitTaxInput);
+            const outsideHitTax = this.parseNumber(this.outsideHitTaxInput);
+
+            if (profit == null || costs == null || warHitTax == null || outsideHitTax == null) {
+                this.error = 'Invalid input values';
+                this.isLoading = false;
+                return;
+            }
+
+            let totalWarHits = 0;
+            let totalOutsideHits = 0;
+
+            hitsByPlayer.forEach(p => {
+                totalWarHits += p.warHits?.length || 0;
+                totalOutsideHits += p.outsideHits?.length || 0;
+            })
+
+            const netProfit = profit - costs;
+            const totalHits = totalWarHits + totalOutsideHits;
+
+            const warHitsPoolGross = totalHits >= 1 ? (totalWarHits / totalHits * netProfit) : 0;
+            const warHitsPool = warHitsPoolGross * (1 - (warHitTax / 100));
+
+            const outsideHitsPoolGross = totalHits >= 1 ? (totalOutsideHits / totalHits * netProfit) : 0;
+            const outsideHitsPool = outsideHitsPoolGross * (1 - (outsideHitTax / 100));
+
+            // Store summary stats in model:
+            this.totalTax = (warHitsPool * (warHitTax / 100)) + (outsideHitsPool * (outsideHitTax / 100));
+            this.payPerOutsideHit = totalOutsideHits > 0 ? (outsideHitsPool / totalOutsideHits) : 0;
+            this.payPerWarHit = totalWarHits > 0 ? (warHitsPool / totalWarHits) : 0;
+
+            // Apportion payouts
+            this.report = hitsByPlayer.map(p => {
+                let warHits = p.warHits?.length || 0;
+                let outsideHits = p.outsideHits?.length || 0;
+                return {
+                    id: p.id,
+                    name: p.name,
+                    warHits,
+                    outsideHits,
+                    payout: Math.round((warHits * this.payPerWarHit) + (outsideHits * this.payPerOutsideHit)),
+                }
+            })
+        },
+
         exportReportAsCSV() {
             if (!this.report.length) return;
 
-            const headers = ['Player', 'War Hits', 'Outside Hits', 'Effective Hits', 'Payout ($)'];
+            const headers = ['Player', 'War Hits', 'Outside Hits', 'Payout ($)'];
             const rows = this.report.map(r =>
-                [`"${r.name}"`, r.warHits, r.outsideHits, r.effectiveHits.toFixed(2), r.payout].join(',')
+                [`"${r.name}"`, r.warHits, r.outsideHits, r.payout].join(',')
             );
 
             const csvContent = [headers.join(','), ...rows].join('\n');
@@ -212,7 +222,7 @@ export function payrollModel() {
             if (!this.report.length) return;
 
             const lines = this.report.map(r =>
-                `${r.name}: ${r.warHits} war hits, ${r.outsideHits} outside hits, ${r.effectiveHits.toFixed(2)} effective hits, $${r.payout.toLocaleString()}`
+                `${r.name}: ${r.warHits} war hits, ${r.outsideHits} outside hits, $${r.payout.toLocaleString()}`
             );
 
             const content = lines.join('\n');
@@ -220,7 +230,7 @@ export function payrollModel() {
         },
 
         downloadFile(filename, content, mimeType) {
-            const blob = new Blob([content], { type: mimeType });
+            const blob = new Blob([content], {type: mimeType});
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
