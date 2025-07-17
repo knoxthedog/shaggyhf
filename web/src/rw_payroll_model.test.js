@@ -27,6 +27,18 @@ describe('payrollModel', () => {
         it('returns null for invalid input', () => {
             expect(model.parseNumber('not a number')).toBeNull()
         })
+
+        it('returns null for empty input', () => {
+            expect(model.parseNumber('')).toBeNull()
+        })
+
+        it('returns null for whitespace input', () => {
+            expect(model.parseNumber('   ')).toBeNull()
+        })
+
+        it('returns the value when given a number', () => {
+            expect(model.parseNumber(1000)).toBe(1000)
+        })
     })
 
     describe('canGenerateReport', () => {
@@ -39,20 +51,40 @@ describe('payrollModel', () => {
         it('returns true if all fields valid', () => {
             model.profitInput = '1000'
             model.costsInput = '500'
+            model.warHitTax = '10'
+            model.outsideHitTax = '50'
             expect(model.canGenerateReport()).toBe(true)
         })
 
-        it('returns false if factionTake is null', () => {
+        it('returns false if warHitTax is null', () => {
             model.profitInput = '1000'
             model.costsInput = '500'
-            model.factionTake = null
+            model.warHitTax = null
+            model.outsideHitTax = '50'
             expect(model.canGenerateReport()).toBe(false)
         })
 
-        it('returns false if outsideHitValue is null', () => {
+        it('returns false if outsideHitTax is null', () => {
             model.profitInput = '1000'
             model.costsInput = '500'
-            model.outsideHitValue = null
+            model.warHitTax = '10'
+            model.outsideHitTax = null
+            expect(model.canGenerateReport()).toBe(false)
+        })
+
+        it('returns false if warHitTax is non-numeric', () => {
+            model.profitInput = '1000'
+            model.costsInput = '500'
+            model.warHitTax = 'abc'
+            model.outsideHitTax = '50'
+            expect(model.canGenerateReport()).toBe(false)
+        })
+
+        it('returns false if outsideHitTax is non-numeric', () => {
+            model.profitInput = '1000'
+            model.costsInput = '500'
+            model.warHitTax = '10'
+            model.outsideHitTax = 'abc'
             expect(model.canGenerateReport()).toBe(false)
         })
     })
@@ -69,6 +101,12 @@ describe('payrollModel', () => {
             model.validateProfit()
             expect(model.isProfitInvalid).toBe(false)
         })
+
+        it('marks invalid if number is < 0', () => {
+            model.profitInput = '-1'
+            model.validateProfit()
+            expect(model.isProfitInvalid).toBe(true)
+        })
     })
 
     describe('validateCosts', () => {
@@ -83,33 +121,51 @@ describe('payrollModel', () => {
             model.validateCosts()
             expect(model.isCostsInvalid).toBe(false)
         })
-    })
 
-    describe('validateFactionTake', () => {
-        it('marks invalid if out of range', () => {
-            model.factionTake = 150
-            model.validateFactionTake()
-            expect(model.isFactionTakeInvalid).toBe(true)
-        })
-
-        it('marks valid if in range', () => {
-            model.factionTake = 50
-            model.validateFactionTake()
-            expect(model.isFactionTakeInvalid).toBe(false)
+        it('marks invalid if number is < 0', () => {
+            model.costsInput = '-1'
+            model.validateCosts()
+            expect(model.isCostsInvalid).toBe(true)
         })
     })
 
-    describe('validateOutsideHit', () => {
+    describe('validateWarHitTax', () => {
         it('marks invalid if out of range', () => {
-            model.outsideHitValue = -10
-            model.validateOutsideHit()
-            expect(model.isOutsideHitInvalid).toBe(true)
+            model.warHitTaxInput = '150'
+            model.validateWarHitTax()
+            expect(model.isWarHitTaxInvalid).toBe(true)
         })
 
         it('marks valid if in range', () => {
-            model.outsideHitValue = 75
-            model.validateOutsideHit()
-            expect(model.isOutsideHitInvalid).toBe(false)
+            model.warHitTaxInput = '50'
+            model.validateWarHitTax()
+            expect(model.isWarHitTaxInvalid).toBe(false)
+        })
+
+        it('marks invalid if less than 0', () => {
+            model.warHitTaxInput = '-1'
+            model.validateWarHitTax()
+            expect(model.isWarHitTaxInvalid).toBe(true)
+        })
+    })
+
+    describe('validateOutsideHitTax', () => {
+        it('marks invalid if out of range', () => {
+            model.outsideHitTaxInput = '101'
+            model.validateOutsideHitTax()
+            expect(model.isOutsideHitTaxInvalid).toBe(true)
+        })
+
+        it('marks valid if in range', () => {
+            model.outsideHitTaxInput = '75'
+            model.validateOutsideHitTax()
+            expect(model.isOutsideHitTaxInvalid).toBe(false)
+        })
+
+        it('marks invalid if less than 0', () => {
+            model.outsideHitTaxInput = '-1'
+            model.validateOutsideHitTax()
+            expect(model.isOutsideHitTaxInvalid).toBe(true)
         })
     })
 
@@ -117,6 +173,67 @@ describe('payrollModel', () => {
         it('formats numbers correctly', () => {
             expect(model.formatCurrency(1000)).toBe('$1,000')
             expect(model.formatCurrency(1234567)).toBe('$1,234,567')
+        })
+    })
+})
+
+describe('payrollModel', () => {
+    let model
+
+    beforeEach(() => {
+        model = payrollModel()
+    })
+
+    describe('generateReportFromHitsData', () => {
+        it('generates correct payouts from simple hitsByPlayer data', () => {
+            model.profitInput = '1000'
+            model.costsInput = '200'
+            model.warHitTaxInput = '10'
+            model.outsideHitTaxInput = '20'
+
+            const hitsByPlayer = [
+                {
+                    id: 1,
+                    name: 'Alice',
+                    warHits: [ {}, {}, {} ], // 3 war hits
+                    outsideHits: [ {}, {} ]  // 2 outside hits
+                },
+                {
+                    id: 2,
+                    name: 'Bob',
+                    warHits: [ {} ],         // 1 war hit
+                    outsideHits: []          // 0 outside hits
+                }
+            ]
+
+            model.generateReportFromHitsData(hitsByPlayer)
+
+            const netProfit = 1000 - 200 // 800
+            const totalHits = 6
+            const totalWarHits = 4
+            const totalOutsideHits = 2
+
+            const warHitsPoolGross = (4 / 6) * netProfit
+            const warHitsPool = warHitsPoolGross * 0.9
+            const payPerWarHit = warHitsPool / totalWarHits
+
+            const outsideHitsPoolGross = (2 / 6) * netProfit
+            const outsideHitsPool = outsideHitsPoolGross * 0.8
+            const payPerOutsideHit = outsideHitsPool / totalOutsideHits
+
+            expect(model.payPerWarHit).toBeCloseTo(payPerWarHit, 5)
+            expect(model.payPerOutsideHit).toBeCloseTo(payPerOutsideHit, 5)
+            expect(model.report).toHaveLength(2)
+
+            const aliceReport = model.report.find(r => r.id === 1)
+            const bobReport = model.report.find(r => r.id === 2)
+
+            expect(aliceReport.payout).toEqual(
+                Math.round(payPerWarHit * 3 + payPerOutsideHit * 2)
+                )
+            expect(bobReport.payout).toEqual(
+                Math.round(payPerWarHit)
+            )
         })
     })
 })
