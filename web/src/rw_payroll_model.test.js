@@ -42,49 +42,60 @@ describe('payrollModel', () => {
     })
 
     describe('canGenerateReport', () => {
-        it('returns false if required fields missing', () => {
-            model.profitInput = ''
-            model.costsInput = ''
-            expect(model.canGenerateReport()).toBe(false)
+        beforeEach(() => {
+            model.profitInput = '1000'
+            model.costsInput = '500'
+            model.warHitTaxInput = '10'
+            model.outsideHitTaxInput = '50'
+            model.startOverrideEpoch = 1700000000
+            model.endOverrideEpoch = 1700003600
         })
 
         it('returns true if all fields valid', () => {
-            model.profitInput = '1000'
-            model.costsInput = '500'
-            model.warHitTax = '10'
-            model.outsideHitTax = '50'
             expect(model.canGenerateReport()).toBe(true)
         })
 
-        it('returns false if warHitTax is null', () => {
+        it('returns false if any required field is missing', () => {
+            model.selectedWarId = null
+            expect(model.canGenerateReport()).toBe(false)
+
+            model.selectedWarId = 1
+            model.profitInput = ''
+            expect(model.canGenerateReport()).toBe(false)
+
             model.profitInput = '1000'
+            model.costsInput = ''
+            expect(model.canGenerateReport()).toBe(false)
+
             model.costsInput = '500'
-            model.warHitTax = null
-            model.outsideHitTax = '50'
+            model.warHitTaxInput = ''
+            expect(model.canGenerateReport()).toBe(false)
+
+            model.warHitTaxInput = '10'
+            model.outsideHitTaxInput = ''
+            expect(model.canGenerateReport()).toBe(false)
+
+            model.startOverrideEpoch = null
+            expect(model.canGenerateReport()).toBe(false)
+
+            model.endOverrideEpoch = null
             expect(model.canGenerateReport()).toBe(false)
         })
 
-        it('returns false if outsideHitTax is null', () => {
-            model.profitInput = '1000'
-            model.costsInput = '500'
-            model.warHitTax = '10'
-            model.outsideHitTax = null
+        it('returns false if a numeric value is non-numeric', () => {
+            model.profitInput = 'abc'
             expect(model.canGenerateReport()).toBe(false)
-        })
 
-        it('returns false if warHitTax is non-numeric', () => {
             model.profitInput = '1000'
-            model.costsInput = '500'
-            model.warHitTax = 'abc'
-            model.outsideHitTax = '50'
+            model.costsInput = 'xyz'
             expect(model.canGenerateReport()).toBe(false)
-        })
 
-        it('returns false if outsideHitTax is non-numeric', () => {
-            model.profitInput = '1000'
             model.costsInput = '500'
-            model.warHitTax = '10'
-            model.outsideHitTax = 'abc'
+            model.warHitTaxInput = 'invalid'
+            expect(model.canGenerateReport()).toBe(false)
+
+            model.warHitTaxInput = '10'
+            model.outsideHitTaxInput = 'not a number'
             expect(model.canGenerateReport()).toBe(false)
         })
     })

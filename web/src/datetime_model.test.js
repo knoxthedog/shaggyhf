@@ -1,4 +1,4 @@
-import { epochToDatetimeLocal, datetimeLocalToEpoch } from './datetime_field.js'
+import { epochToDatetimeLocal, datetimeLocalToEpoch } from './datetime_model.js'
 
 describe('epochToDatetimeLocal', () => {
     it('formats an epoch as a datetime-local string in UTC', () => {

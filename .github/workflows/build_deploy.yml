@@ -1,5 +1,7 @@
-# Simple workflow for deploying static content to GitHub Pages
-name: Deploy static content to Pages
+name: Deploy to GitHub Pages
+
+# Note that CloudFlare Pages have their own integration with GH, visible in the Cloudflare Pages dashboard,
+# and that deployment workflow is not defined here.
 
 on:
   # Runs on pushes targeting the default branch
