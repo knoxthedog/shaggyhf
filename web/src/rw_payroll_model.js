@@ -14,7 +14,7 @@ export function payrollModel() {
         showNonFacHitsInAudit: false,
         error: '',
 
-        // Inputs (TODO persist these in localStorage)
+        // Inputs
         warHitTaxInput: '',
         outsideHitTaxInput: '',
         profitInput: '',
@@ -97,26 +97,20 @@ export function payrollModel() {
             }
         },
 
-        setStartOverride(epoch) {
-            this.startOverrideEpoch = epoch;
-        },
-
-        setEndOverride(epoch) {
-            this.endOverrideEpoch = epoch;
-        },
-
         canGenerateReport() {
             const profit = this.parseNumber(this.profitInput);
             const costs = this.parseNumber(this.costsInput);
             const warHitTax = this.parseNumber(this.warHitTaxInput);
             const outsideHitTax = this.parseNumber(this.outsideHitTaxInput);
-            return (
+            return !!(
                 this.selectedWarId &&
                 profit != null &&
                 costs != null &&
                 warHitTax != null &&
-                outsideHitTax != null
-            );
+                outsideHitTax != null &&
+                this.startOverrideEpoch != null &&
+                this.endOverrideEpoch != null
+            )
         },
 
         parseNumber(value) {
