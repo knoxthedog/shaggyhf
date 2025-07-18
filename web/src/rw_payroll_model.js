@@ -13,6 +13,7 @@ export function payrollModel() {
         showAudit: false,
         showNonFacHitsInAudit: false,
         error: '',
+        initialQueryParams: new URLSearchParams(window.location.search),
 
         // Inputs
         warHitTaxInput: '',
@@ -39,7 +40,7 @@ export function payrollModel() {
             this.apiKey = localStorage.getItem('tornApiKey')
             if (this.apiKey) {
                 this.setupApiClient()
-                this.fetchRankedWars()
+                this.fetchRankedWars().then(() => this.applyInitialQueryParams())
             }
             this.$watch('selectedWarId', (newId) => {
                 this.onSelectedWarChange(newId);
@@ -51,7 +52,34 @@ export function payrollModel() {
             this.apiKey = this.apiKeyInput
             localStorage.setItem('tornApiKey', this.apiKey)
             this.setupApiClient()
-            this.fetchRankedWars()
+            this.fetchRankedWars().then(() => this.applyInitialQueryParams())
+        },
+
+        applyInitialQueryParams() {
+            const p = this.initialQueryParams;
+
+            const war = p.get('war');
+            if (war && this.findRankedWar(war)) {
+                this.selectedWarId = war;
+            }
+            if (p.get('profit')) this.profitInput = p.get('profit');
+            if (p.get('costs')) this.costsInput = p.get('costs');
+            if (p.get('warTax')) this.warHitTaxInput = Number(p.get('warTax'));
+            if (p.get('outsideTax')) this.outsideHitTaxInput = Number(p.get('outsideTax'));
+            if (p.get('start')) this.startOverrideEpoch = Number(p.get('start'));
+            if (p.get('end')) this.endOverrideEpoch = Number(p.get('end'));
+        },
+
+        updateQueryParams() {
+            const params = new URLSearchParams();
+            if (this.selectedWarId) params.set('war', this.selectedWarId);
+            if (this.profitInput) params.set('profit', this.profitInput);
+            if (this.costsInput) params.set('costs', this.costsInput);
+            if (this.warHitTaxInput !== '') params.set('warTax', this.warHitTaxInput);
+            if (this.outsideHitTaxInput !== '') params.set('outsideTax', this.outsideHitTaxInput);
+            if (this.startOverrideEpoch) params.set('start', this.startOverrideEpoch);
+            if (this.endOverrideEpoch) params.set('end', this.endOverrideEpoch);
+            window.history.replaceState({}, '', `${location.pathname}?${params.toString()}`);
         },
 
         setupApiClient() {
@@ -78,6 +106,10 @@ export function payrollModel() {
             } finally {
                 this.isLoading = false
             }
+        },
+
+        findRankedWar(id) {
+            return this.rankedWars.find(w => `${w.id}` === `${id}`);
         },
 
         onSelectedWarChange(newId) {
@@ -155,7 +187,7 @@ export function payrollModel() {
             this.report = []
 
             try {
-                const rankedWar = this.rankedWars.find(w => `${w.id}` === this.selectedWarId)
+                const rankedWar = this.findRankedWar(this.selectedWarId)
 
                 let {start, end} = rankedWar;
                 if (this.startOverrideEpoch) {

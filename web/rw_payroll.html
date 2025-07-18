@@ -6,7 +6,11 @@
     <title>Ranked War Payroll</title>
     <link rel="stylesheet" href="./src/style.css" />
 </head>
-<body class="min-h-screen p-6 text-textPrimary bg-background" x-data="payrollModel()" x-init="init()">
+<body class="min-h-screen p-6 text-textPrimary bg-background"
+      x-data="payrollModel()"
+      x-effect="updateQueryParams()"
+      x-init="init()"
+>
 <div class="max-w-2xl mx-auto bg-surface p-6 rounded-xl shadow-md">
     <h1 class="text-2xl font-bold mb-4 text-textPrimary">Ranked War Payroll</h1>
 
