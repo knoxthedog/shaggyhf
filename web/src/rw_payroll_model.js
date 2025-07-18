@@ -19,6 +19,8 @@ export function payrollModel() {
         outsideHitTaxInput: '',
         profitInput: '',
         costsInput: '',
+        startOverrideEpoch: null,
+        endOverrideEpoch: null,
 
         // Input validation flags
         isProfitInvalid: false,
@@ -39,6 +41,9 @@ export function payrollModel() {
                 this.setupApiClient()
                 this.fetchRankedWars()
             }
+            this.$watch('selectedWarId', (newId) => {
+                this.onSelectedWarChange(newId);
+            });
         },
 
         saveApiKey() {
@@ -73,6 +78,31 @@ export function payrollModel() {
             } finally {
                 this.isLoading = false
             }
+        },
+
+        onSelectedWarChange(newId) {
+            const id = Number(newId);
+            if (!isNaN(id)) {
+                const war = this.rankedWars.find(w => w.id === id);
+                if (war) {
+                    this.startOverrideEpoch = war.start;
+                    this.endOverrideEpoch = war.end;
+                } else {
+                    this.startOverrideEpoch = null;
+                    this.endOverrideEpoch = null;
+                }
+            } else {
+                this.startOverrideEpoch = null;
+                this.endOverrideEpoch = null;
+            }
+        },
+
+        setStartOverride(epoch) {
+            this.startOverrideEpoch = epoch;
+        },
+
+        setEndOverride(epoch) {
+            this.endOverrideEpoch = epoch;
         },
 
         canGenerateReport() {
@@ -132,7 +162,19 @@ export function payrollModel() {
 
             try {
                 const rankedWar = this.rankedWars.find(w => `${w.id}` === this.selectedWarId)
-                const {start, end} = rankedWar;
+
+                let {start, end} = rankedWar;
+                if (this.startOverrideEpoch) {
+                    start = this.startOverrideEpoch;
+                }
+                if (this.endOverrideEpoch) {
+                    end = this.endOverrideEpoch;
+                }
+                if (!start || !end) {
+                    this.error = 'Invalid war time range selected.';
+                    return;
+                }
+
                 const attacks = await this.apiClient.fetchAttacksInWindow(start, end);
                 const {participants, auditLog} = collectRankedWarHitsFromData(rankedWar, attacks, FACTION_ID);
 
