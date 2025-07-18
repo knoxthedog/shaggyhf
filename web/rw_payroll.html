@@ -43,6 +43,46 @@
         </div>
     </template>
 
+    <!-- Date Overrides for the selected war -->
+    <template x-if="selectedWarId">
+        <div class="space-y-3 mb-4">
+            <label class="block font-medium text-textPrimary">Start Time (TCT)</label>
+            <div x-data="startDatetime = datetimeField({
+                            initialEpoch: startOverrideEpoch,
+                            onUpdate: epoch => startOverrideEpoch = epoch
+                          })"
+                 x-init="startDatetime = $data"
+                 x-effect="startDatetime.setEpoch(startOverrideEpoch)"
+            >
+                <input
+                        type="datetime-local"
+                        x-model="datetimeStr"
+                        :disabled="!selectedWarId"
+                        @change="handleChange"
+                        class="input-compact"
+                >
+            </div>
+
+            <label class="block font-medium text-textPrimary">End Time (TCT)</label>
+            <div x-data="endDatetime = datetimeField({
+                            initialEpoch: endOverrideEpoch,
+                            onUpdate: epoch => endOverrideEpoch = epoch
+                          })"
+                 x-init="endDatetime = $data"
+                 x-effect="endDatetime.setEpoch(endOverrideEpoch)"
+            >
+                <input
+                        type="datetime-local"
+                        x-model="datetimeStr"
+                        :disabled="!selectedWarId"
+                        @change="handleChange"
+                        class="input-compact"
+                >
+            </div>
+        </div>
+    </template>
+
+
     <!-- Parameter inputs -->
     <template x-if="selectedWarId">
         <div class="space-y-3">
@@ -229,9 +269,11 @@
 <script type="module">
     import Alpine from 'alpinejs'
     import { payrollModel } from './src/rw_payroll_model.js'
+    import { datetimeField } from './src/datetime_model.js';
 
     window.Alpine = Alpine
     Alpine.data('payrollModel', payrollModel)
+    Alpine.data('datetimeField', datetimeField)
     Alpine.start()
 </script>
 </body>
