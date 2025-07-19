@@ -49,91 +49,82 @@
 
     <!-- Date Overrides for the selected war -->
     <template x-if="selectedWarId">
-        <div class="space-y-3 mb-4">
-            <label class="block font-medium text-textPrimary">Start Time (TCT)</label>
-            <div x-data="startDatetime = datetimeField({
-                            initialEpoch: startOverrideEpoch,
-                            onUpdate: epoch => startOverrideEpoch = epoch
-                          })"
-                 x-init="startDatetime = $data"
-                 x-effect="startDatetime.setEpoch(startOverrideEpoch)"
-            >
-                <input
-                        type="datetime-local"
-                        x-model="datetimeStr"
-                        :disabled="!selectedWarId"
-                        @change="handleChange"
-                        class="input-compact"
-                >
+        <div class="flex flex-wrap gap-4 mb-4">
+            <div class="flex-1 min-w-[200px] flex flex-col">
+                <label class="font-medium text-textPrimary mb-1">Start (TCT)</label>
+                <div x-data="startDatetime = datetimeField({ initialEpoch: startOverrideEpoch, onUpdate: epoch => startOverrideEpoch = epoch })"
+                     x-init="startDatetime = $data"
+                     x-effect="startDatetime.setEpoch(startOverrideEpoch)">
+                    <input type="datetime-local"
+                           x-model="datetimeStr"
+                           :disabled="!selectedWarId"
+                           @change="handleChange"
+                           class="input-compact w-full" />
+                </div>
             </div>
-
-            <label class="block font-medium text-textPrimary">End Time (TCT)</label>
-            <div x-data="endDatetime = datetimeField({
-                            initialEpoch: endOverrideEpoch,
-                            onUpdate: epoch => endOverrideEpoch = epoch
-                          })"
-                 x-init="endDatetime = $data"
-                 x-effect="endDatetime.setEpoch(endOverrideEpoch)"
-            >
-                <input
-                        type="datetime-local"
-                        x-model="datetimeStr"
-                        :disabled="!selectedWarId"
-                        @change="handleChange"
-                        class="input-compact"
-                >
+            <div class="flex-1 min-w-[200px] flex flex-col">
+                <label class="font-medium text-textPrimary mb-1">End (TCT)</label>
+                <div x-data="endDatetime = datetimeField({ initialEpoch: endOverrideEpoch, onUpdate: epoch => endOverrideEpoch = epoch })"
+                     x-init="endDatetime = $data"
+                     x-effect="endDatetime.setEpoch(endOverrideEpoch)">
+                    <input type="datetime-local"
+                           x-model="datetimeStr"
+                           :disabled="!selectedWarId"
+                           @change="handleChange"
+                           class="input-compact w-full" />
+                </div>
             </div>
         </div>
     </template>
 
-
-    <!-- Parameter inputs -->
+    <!-- Profit and Cost inputs -->
     <template x-if="selectedWarId">
-        <div class="space-y-3">
-            <div>
-                <label class="block mb-2 font-medium text-textPrimary">Profit ($)</label>
-                <input
-                        x-model="profitInput"
-                        inputmode="numeric"
-                        @blur="validateProfit"
-                        :class="['input-compact', isProfitInvalid ? 'border-dangerText' : 'border-border']"
-                        placeholder="Enter profit amount"
-                />
+        <div class="flex flex-wrap gap-4 mb-4">
+            <div class="flex-1 min-w-[200px] flex flex-col">
+                <label class="font-medium text-textPrimary mb-1">Profit ($)</label>
+                <input type="text"
+                       x-model="profitInput"
+                       inputmode="numeric"
+                       @blur="validateProfit"
+                       :class="['input-compact w-full', isProfitInvalid ? 'border-dangerText' : 'border-border']"
+                       placeholder="Enter profit amount" />
             </div>
-
-            <div>
-                <label class="block mb-2 font-medium text-textPrimary">Costs ($)</label>
-                <input
-                        x-model="costsInput"
-                        inputmode="numeric"
-                        @blur="validateCosts"
-                        :class="['input-compact', isCostsInvalid ? 'border-dangerText' : 'border-border']"
-                        placeholder="Enter costs amount"
-                />
+            <div class="flex-1 min-w-[200px] flex flex-col">
+                <label class="font-medium text-textPrimary mb-1">Cost ($)</label>
+                <input type="text"
+                       x-model="costsInput"
+                       inputmode="numeric"
+                       @blur="validateCosts"
+                       :class="['input-compact w-full', isCostsInvalid ? 'border-dangerText' : 'border-border']"
+                       placeholder="Enter cost amount" />
             </div>
+        </div>
+    </template>
 
-            <div>
-                <label class="block mb-2 font-medium text-textPrimary">War Hit Tax (%)</label>
+    <!-- War Hit and Outside Hit Tax inputs -->
+    <template x-if="selectedWarId">
+        <div class="flex flex-wrap gap-4 mb-4">
+            <div class="flex-1 min-w-[200px] flex flex-col">
+                <label class="font-medium text-textPrimary mb-1">War Hit Tax (%)</label>
                 <input
                         x-model.number="warHitTaxInput"
                         type="number"
                         min="0"
                         max="100"
                         @blur="validateWarHitTax"
-                        :class="['input-compact', isWarHitTaxInvalid ? 'border-dangerText' : 'border-border']"
+                        :class="['input-compact w-full', isWarHitTaxInvalid ? 'border-dangerText' : 'border-border']"
                         placeholder="e.g., 10 for 10%"
                 />
             </div>
-
-            <div>
-                <label class="block mb-2 font-medium text-textPrimary">Outside Hit Tax (%)</label>
+            <div class="flex-1 min-w-[200px] flex flex-col">
+                <label class="font-medium text-textPrimary mb-1">Outside Hit Tax (%)</label>
                 <input
                         x-model.number="outsideHitTaxInput"
                         type="number"
                         min="0"
                         max="100"
                         @blur="validateOutsideHitTax"
-                        :class="['input-compact', isOutsideHitTaxInvalid ? 'border-dangerText' : 'border-border']"
+                        :class="['input-compact w-full', isOutsideHitTaxInvalid ? 'border-dangerText' : 'border-border']"
                         placeholder="e.g., 50 for 50%"
                 />
             </div>
@@ -158,7 +149,7 @@
         <div class="mt-4 flex justify-end">
             <button
                     @click="showAudit = !showAudit"
-                    class="btn-compact bg-muted hover:bg-border text-textPrimary"
+                    class="text-sm text-accent hover:underline focus:outline-none"
             >
                 <span x-text="showAudit ? 'Show Summary' : 'Show Audit Log'"></span>
             </button>
@@ -258,7 +249,7 @@
     <template x-if="isLoading">
         <div class="text-sm text-textSecondary mt-4">
             <span class="animate-spin inline-block w-4 h-4 border-2 border-border border-t-transparent rounded-full mr-2"></span>
-            Fetching ranked wars...
+            Checking who punched who...
         </div>
     </template>
 
