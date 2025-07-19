@@ -149,7 +149,7 @@
         <div class="mt-4 flex justify-end">
             <button
                     @click="showAudit = !showAudit"
-                    class="btn-compact bg-muted hover:bg-border text-textPrimary"
+                    class="text-sm text-accent hover:underline focus:outline-none"
             >
                 <span x-text="showAudit ? 'Show Summary' : 'Show Audit Log'"></span>
             </button>
@@ -249,7 +249,7 @@
     <template x-if="isLoading">
         <div class="text-sm text-textSecondary mt-4">
             <span class="animate-spin inline-block w-4 h-4 border-2 border-border border-t-transparent rounded-full mr-2"></span>
-            Fetching ranked wars...
+            Checking who punched who...
         </div>
     </template>
 
