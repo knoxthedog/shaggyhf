@@ -1,250 +1,171 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { payrollModel } from './rw_payroll_model.js'
 
-describe('payrollModel', () => {
-    let model
+// Helpers to make audit rows concise
+function row({
+                 player,
+                 type = 'War Hit',
+                 counted = true,
+                 isAttackerFacMember = true,
+                 opponent = 'Opp',
+                 result = 'Won',
+                 timestamp = 1,
+             } = {}) {
+    return { player, type, counted, isAttackerFacMember, opponent, result, timestamp }
+}
+
+describe('payrollModel (new)', () => {
+    let m
 
     beforeEach(() => {
-        model = payrollModel()
-        model.selectedWarId = 1
-        model.factionTake = 25
-        model.outsideHitValue = 50
+        m = payrollModel()
+        // Avoid any init side-effects in tests; we won’t call init().
+        m.selectedWarId = 123
+
+        // Default money inputs
+        m.profitInput = ''
+        m.xanaxInput = ''
+        m.spiesInput = ''
+        m.medicalInput = ''
+        m.otherInput = ''
+
+        // Default tax settings
+        m.warHitTaxInput = 10 // 10%
+        m.outsideHitTaxInput = 50 // 50%
     })
 
-    describe('parseNumber', () => {
-        it('parses plain numbers', () => {
-            expect(model.parseNumber('123')).toBe(123)
-        })
-
-        it('parses numbers with commas', () => {
-            expect(model.parseNumber('1,234')).toBe(1234)
-        })
-
-        it('parses numbers with leading $', () => {
-            expect(model.parseNumber('$567.89')).toBeCloseTo(567.89)
-        })
-
-        it('returns null for invalid input', () => {
-            expect(model.parseNumber('not a number')).toBeNull()
-        })
-
-        it('returns null for empty input', () => {
-            expect(model.parseNumber('')).toBeNull()
-        })
-
-        it('returns null for whitespace input', () => {
-            expect(model.parseNumber('   ')).toBeNull()
-        })
-
-        it('returns the value when given a number', () => {
-            expect(model.parseNumber(1000)).toBe(1000)
+    describe('money formatting', () => {
+        it('formatCurrency rounds and formats with thousands', () => {
+            expect(m.formatCurrency(0)).toBe('$0')
+            expect(m.formatCurrency(9.49)).toBe('$9')
+            expect(m.formatCurrency(9.5)).toBe('$10')
+            expect(m.formatCurrency(1234567.4)).toBe('$1,234,567')
+            expect(m.formatCurrency('$1,234,567.8')).toBe('$1,234,568')
         })
     })
 
-    describe('canGenerateReport', () => {
-        beforeEach(() => {
-            model.profitInput = '1000'
-            model.costsInput = '500'
-            model.warHitTaxInput = '10'
-            model.outsideHitTaxInput = '50'
-            model.startOverrideEpoch = 1700000000
-            model.endOverrideEpoch = 1700003600
+    describe('cost & validation inputs', () => {
+        it('computes totalCosts from the four cost inputs', () => {
+            m.xanaxInput = '100'
+            m.spiesInput = '$200'
+            m.medicalInput = '300.50'
+            m.otherInput = '400'
+            expect(m.totalCosts).toBeCloseTo(100 + 200 + 300.5 + 400, 5)
         })
 
-        it('returns true if all fields valid', () => {
-            expect(model.canGenerateReport()).toBe(true)
+        it('validates profit and cost inputs (no negatives allowed)', () => {
+            m.profitInput = '-1'
+            expect(m.isProfitInvalid).toBe(true)
+            m.profitInput = '0'
+            expect(m.isProfitInvalid).toBe(false)
+
+            m.xanaxInput = '0'
+            m.spiesInput = '0'
+            m.medicalInput = '0'
+            m.otherInput = '0'
+            expect(m.isCostsInvalid).toBe(false)
+
+            m.otherInput = '-5'
+            expect(m.isCostsInvalid).toBe(true)
         })
 
-        it('returns false if any required field is missing', () => {
-            model.selectedWarId = null
-            expect(model.canGenerateReport()).toBe(false)
+        it('validates tax percentages to be within [0, 100]', () => {
+            m.warHitTaxInput = -1
+            m.outsideHitTaxInput = 101
+            expect(m.isWarHitTaxInvalid).toBe(true)
+            expect(m.isOutsideHitTaxInvalid).toBe(true)
 
-            model.selectedWarId = 1
-            model.profitInput = ''
-            expect(model.canGenerateReport()).toBe(false)
-
-            model.profitInput = '1000'
-            model.costsInput = ''
-            expect(model.canGenerateReport()).toBe(false)
-
-            model.costsInput = '500'
-            model.warHitTaxInput = ''
-            expect(model.canGenerateReport()).toBe(false)
-
-            model.warHitTaxInput = '10'
-            model.outsideHitTaxInput = ''
-            expect(model.canGenerateReport()).toBe(false)
-
-            model.startOverrideEpoch = null
-            expect(model.canGenerateReport()).toBe(false)
-
-            model.endOverrideEpoch = null
-            expect(model.canGenerateReport()).toBe(false)
-        })
-
-        it('returns false if a numeric value is non-numeric', () => {
-            model.profitInput = 'abc'
-            expect(model.canGenerateReport()).toBe(false)
-
-            model.profitInput = '1000'
-            model.costsInput = 'xyz'
-            expect(model.canGenerateReport()).toBe(false)
-
-            model.costsInput = '500'
-            model.warHitTaxInput = 'invalid'
-            expect(model.canGenerateReport()).toBe(false)
-
-            model.warHitTaxInput = '10'
-            model.outsideHitTaxInput = 'not a number'
-            expect(model.canGenerateReport()).toBe(false)
+            m.warHitTaxInput = 0
+            m.outsideHitTaxInput = 100
+            expect(m.isWarHitTaxInvalid).toBe(false)
+            expect(m.isOutsideHitTaxInvalid).toBe(false)
         })
     })
 
-    describe('validateProfit', () => {
-        it('marks invalid if input is not a number', () => {
-            model.profitInput = 'abc'
-            model.validateProfit()
-            expect(model.isProfitInvalid).toBe(true)
-        })
-
-        it('marks valid if input is numeric', () => {
-            model.profitInput = '1,000'
-            model.validateProfit()
-            expect(model.isProfitInvalid).toBe(false)
-        })
-
-        it('marks invalid if number is < 0', () => {
-            model.profitInput = '-1'
-            model.validateProfit()
-            expect(model.isProfitInvalid).toBe(true)
-        })
-    })
-
-    describe('validateCosts', () => {
-        it('marks invalid if input is not a number', () => {
-            model.costsInput = 'bad'
-            model.validateCosts()
-            expect(model.isCostsInvalid).toBe(true)
-        })
-
-        it('marks valid if input is numeric', () => {
-            model.costsInput = '$500'
-            model.validateCosts()
-            expect(model.isCostsInvalid).toBe(false)
-        })
-
-        it('marks invalid if number is < 0', () => {
-            model.costsInput = '-1'
-            model.validateCosts()
-            expect(model.isCostsInvalid).toBe(true)
-        })
-    })
-
-    describe('validateWarHitTax', () => {
-        it('marks invalid if out of range', () => {
-            model.warHitTaxInput = '150'
-            model.validateWarHitTax()
-            expect(model.isWarHitTaxInvalid).toBe(true)
-        })
-
-        it('marks valid if in range', () => {
-            model.warHitTaxInput = '50'
-            model.validateWarHitTax()
-            expect(model.isWarHitTaxInvalid).toBe(false)
-        })
-
-        it('marks invalid if less than 0', () => {
-            model.warHitTaxInput = '-1'
-            model.validateWarHitTax()
-            expect(model.isWarHitTaxInvalid).toBe(true)
-        })
-    })
-
-    describe('validateOutsideHitTax', () => {
-        it('marks invalid if out of range', () => {
-            model.outsideHitTaxInput = '101'
-            model.validateOutsideHitTax()
-            expect(model.isOutsideHitTaxInvalid).toBe(true)
-        })
-
-        it('marks valid if in range', () => {
-            model.outsideHitTaxInput = '75'
-            model.validateOutsideHitTax()
-            expect(model.isOutsideHitTaxInvalid).toBe(false)
-        })
-
-        it('marks invalid if less than 0', () => {
-            model.outsideHitTaxInput = '-1'
-            model.validateOutsideHitTax()
-            expect(model.isOutsideHitTaxInvalid).toBe(true)
-        })
-    })
-
-    describe('formatCurrency', () => {
-        it('formats numbers correctly', () => {
-            expect(model.formatCurrency(1000)).toBe('$1,000')
-            expect(model.formatCurrency(1234567)).toBe('$1,234,567')
-        })
-    })
-})
-
-describe('payrollModel', () => {
-    let model
-
-    beforeEach(() => {
-        model = payrollModel()
-    })
-
-    describe('generateReportFromHitsData', () => {
-        it('generates correct payouts from simple hitsByPlayer data', () => {
-            model.profitInput = '1000'
-            model.costsInput = '200'
-            model.warHitTaxInput = '10'
-            model.outsideHitTaxInput = '20'
-
-            const hitsByPlayer = [
-                {
-                    id: 1,
-                    name: 'Alice',
-                    warHits: [ {}, {}, {} ], // 3 war hits
-                    outsideHits: [ {}, {} ]  // 2 outside hits
-                },
-                {
-                    id: 2,
-                    name: 'Bob',
-                    warHits: [ {} ],         // 1 war hit
-                    outsideHits: []          // 0 outside hits
-                }
+    describe('recomputeReportWithOverrides()', () => {
+        it('splits war vs outside by type and applies taxes and costs correctly', () => {
+            m.profitInput = '1000'
+            m.xanaxInput = '100'
+            m.auditLog = [
+                row({ player: 'Alice', type: 'War Hit' }),
+                row({ player: 'Alice', type: 'War Hit' }),
+                row({ player: 'Alice', type: 'War Hit' }),
+                row({ player: 'Alice', type: 'Outside Hit' }),
+                row({ player: 'Alice', type: 'outside retaliation' }),
+                row({ player: 'Bob',   type: 'War Hit' }),
+                row({ player: 'Eve', type: 'War Hit', isAttackerFacMember: false }),
+                row({ player: 'Mallory', type: 'Outside Hit', counted: false }),
             ]
 
-            model.generateReportFromHitsData(hitsByPlayer)
+            m.recomputeReportWithOverrides()
 
-            const netProfit = 1000 - 200 // 800
-            const totalHits = 6
-            const totalWarHits = 4
-            const totalOutsideHits = 2
+            expect(m.payPerWarHit).toBeCloseTo(135, 5)
+            expect(m.payPerOutsideHit).toBeCloseTo(75, 5)
+            expect(m.totalTax).toBeCloseTo(210, 5)
 
-            const warHitsPoolGross = (4 / 6) * netProfit
-            const warHitsPool = warHitsPoolGross * 0.9
-            const payPerWarHit = warHitsPool / totalWarHits
+            const alice = m.wizardReport.find(r => r.name === 'Alice')
+            const bob   = m.wizardReport.find(r => r.name === 'Bob')
+            expect(alice.warHits).toBe(3)
+            expect(alice.outsideHits).toBe(2)
+            expect(alice.payout).toBeCloseTo(555, 5)
+            expect(bob.warHits).toBe(1)
+            expect(bob.outsideHits).toBe(0)
+            expect(bob.payout).toBeCloseTo(135, 5)
 
-            const outsideHitsPoolGross = (2 / 6) * netProfit
-            const outsideHitsPool = outsideHitsPoolGross * 0.8
-            const payPerOutsideHit = outsideHitsPool / totalOutsideHits
+            expect(m.wizardReport[0].payout).toBeGreaterThanOrEqual(m.wizardReport[1].payout)
+        })
 
-            expect(model.payPerWarHit).toBeCloseTo(payPerWarHit, 5)
-            expect(model.payPerOutsideHit).toBeCloseTo(payPerOutsideHit, 5)
-            expect(model.report).toHaveLength(2)
+        it('clamps tax percentages within [0,1]', () => {
+            m.profitInput = '200'
+            m.auditLog = [
+                row({ player: 'A', type: 'War Hit' }),
+                row({ player: 'A', type: 'outside' }),
+                row({ player: 'B', type: 'OUTSIDE' }),
+                row({ player: 'B', type: 'war' }),
+            ]
+            m.warHitTaxInput = -50
+            m.outsideHitTaxInput = 250
+            m.recomputeReportWithOverrides()
 
-            const aliceReport = model.report.find(r => r.id === 1)
-            const bobReport = model.report.find(r => r.id === 2)
+            expect(m.payPerWarHit).toBeCloseTo(50, 5)
+            expect(m.payPerOutsideHit).toBeCloseTo(0, 5)
+            expect(m.totalTax).toBeCloseTo(100, 5)
 
-            expect(aliceReport.payout).toEqual(
-                Math.round(payPerWarHit * 3 + payPerOutsideHit * 2)
-                )
-            expect(bobReport.payout).toEqual(
-                Math.round(payPerWarHit)
-            )
+            const A = m.wizardReport.find(r => r.name === 'A')
+            const B = m.wizardReport.find(r => r.name === 'B')
+            expect(A.payout).toBeCloseTo(50, 5)
+            expect(B.payout).toBeCloseTo(50, 5)
+        })
+
+        it('produces zero payouts when there are zero counted faction hits', () => {
+            m.profitInput = '500'
+            m.auditLog = [
+                row({ player: 'Zoe', type: 'War Hit', counted: false }),
+                row({ player: 'Una', type: 'Outside', isAttackerFacMember: false }),
+            ]
+            m.recomputeReportWithOverrides()
+            expect(m.payPerWarHit).toBe(0)
+            expect(m.payPerOutsideHit).toBe(0)
+            expect(m.totalTax).toBe(0)
+            expect(m.wizardReport).toEqual([])
+        })
+
+        it('respects manual overrides when present', () => {
+            m.profitInput = '300'
+            m.auditLog = [
+                row({ player: 'Kim', type: 'War Hit', counted: true, timestamp: 1 }),
+                row({ player: 'Kim', type: 'Outside Hit', counted: false, timestamp: 2 }),
+            ]
+            const k1 = m.rowKey(m.auditLog[0], 0)
+            const k2 = m.rowKey(m.auditLog[1], 1)
+            m.overrides = { [k1]: false, [k2]: true }
+
+            m.recomputeReportWithOverrides()
+
+            const kim = m.wizardReport.find(r => r.name === 'Kim')
+            expect(kim.warHits).toBe(0)
+            expect(kim.outsideHits).toBe(1)
+            expect(kim.payout).toBeCloseTo(150, 5)
         })
     })
 })
