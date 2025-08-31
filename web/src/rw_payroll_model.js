@@ -64,6 +64,16 @@ export function payrollModel () {
                 window.location.href = './index.html';
             } else {
                 this.step = clamp(this.step - 1, 1, 3)
+                // Ensure selectedWarId is preserved when returning to step 1
+                if (this.step === 1 && this.selectedWarId) {
+                    // Force UI re-sync by briefly clearing and restoring the selection
+                    const currentWarId = this.selectedWarId
+                    this.selectedWarId = ''
+                    // Use setTimeout to ensure DOM updates
+                    setTimeout(() => {
+                        this.selectedWarId = currentWarId
+                    }, 0)
+                }
             }
         },
 
@@ -308,6 +318,7 @@ export function payrollModel () {
         },
 
         onSelectedWarChange (newId) {
+            if (newId === '' || newId == null) return
             const id = Number(newId)
             if (!isNaN(id)) {
                 const war = this.rankedWars.find(w => w.id === id)

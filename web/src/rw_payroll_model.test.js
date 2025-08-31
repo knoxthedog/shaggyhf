@@ -168,4 +168,98 @@ describe('payrollModel (new)', () => {
             expect(kim.payout).toBeCloseTo(150, 5)
         })
     })
+
+    describe('wizard navigation', () => {
+        beforeEach(() => {
+            // Mock setTimeout for synchronous testing
+            global.setTimeout = (fn) => fn()
+        })
+
+        it('preserves selectedWarId when navigating back from step 2 to step 1', () => {
+            // Setup: simulate user has selected a war and moved to step 2
+            m.selectedWarId = '12345'
+            m.step = 2
+            
+            // When: user clicks back button
+            m.prevStep()
+            
+            // Then: should be back on step 1 with war selection preserved
+            expect(m.step).toBe(1)
+            expect(m.selectedWarId).toBe('12345')
+        })
+        
+        it('preserves selectedWarId when navigating back from step 3 to step 2', () => {
+            // Setup: simulate user has progressed to step 3
+            m.selectedWarId = '67890'
+            m.step = 3
+            
+            // When: user clicks back button
+            m.prevStep()
+            
+            // Then: should be back on step 2 with war selection preserved  
+            expect(m.step).toBe(2)
+            expect(m.selectedWarId).toBe('67890')
+        })
+        
+        it('clamps step within valid range during navigation', () => {
+            // Test stepping back from step 3 to 2
+            m.step = 3
+            m.prevStep()
+            expect(m.step).toBe(2)
+            
+            // Test stepping back from step 2 to 1
+            m.step = 2  
+            m.prevStep()
+            expect(m.step).toBe(1)
+        })
+
+        it('does not modify selectedWarId when stepping back to step 2', () => {
+            // Setup: user at step 3 with a selected war
+            m.selectedWarId = '99999'
+            m.step = 3
+            
+            // When: user clicks back to step 2
+            m.prevStep()
+            
+            // Then: selectedWarId should remain unchanged
+            expect(m.step).toBe(2)
+            expect(m.selectedWarId).toBe('99999')
+        })
+
+        it('triggers UI re-sync only when returning to step 1 with a selectedWarId', () => {
+            // Test case: step 2 -> 1 with selectedWarId (should trigger re-sync)
+            m.selectedWarId = '12345'
+            m.step = 2
+            
+            // Track how many times setTimeout was called
+            let setTimeoutCalled = false
+            global.setTimeout = (fn) => {
+                setTimeoutCalled = true
+                fn()
+            }
+            
+            m.prevStep()
+            
+            expect(m.step).toBe(1)
+            expect(m.selectedWarId).toBe('12345')
+            expect(setTimeoutCalled).toBe(true)
+        })
+
+        it('does not trigger UI re-sync when returning to step 1 without selectedWarId', () => {
+            // Test case: step 2 -> 1 without selectedWarId (should not trigger re-sync)
+            m.selectedWarId = ''
+            m.step = 2
+            
+            let setTimeoutCalled = false
+            global.setTimeout = (fn) => {
+                setTimeoutCalled = true
+                fn()
+            }
+            
+            m.prevStep()
+            
+            expect(m.step).toBe(1)
+            expect(setTimeoutCalled).toBe(false)
+        })
+    })
 })

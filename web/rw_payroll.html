@@ -34,7 +34,7 @@
                     <select x-model="selectedWarId" class="input-compact mb-3">
                         <option value="" disabled>Select a war...</option>
                         <template x-for="war in rankedWars" :key="war.id">
-                            <option :value="war.id" x-text="war.opposingFactionName"></option>
+                            <option :value="String(war.id)" x-text="war.opposingFactionName"></option>
                         </template>
                     </select>
                 </div>
@@ -72,7 +72,7 @@
                                placeholder="Enter profit amount" />
                     </div>
                     <div>
-                        <label class="font-medium block mb-1">Costs (breakdown)</label>
+                        <label class="font-medium block mb-1">Costs</label>
                         <div class="grid grid-cols-2 gap-2">
                             <input x-model="xanaxInput"   inputmode="numeric" placeholder="Xanax"  class="input-compact" />
                             <input x-model="spiesInput"   inputmode="numeric" placeholder="Spies"  class="input-compact" />
