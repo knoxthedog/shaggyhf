@@ -220,6 +220,16 @@ export function payrollModel () {
             document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url)
         },
 
+        copyPayrollLink () {
+            const currentUrl = window.location.href
+            navigator.clipboard.writeText(currentUrl).then(() => {
+                alert('Payroll link copied to clipboard! Share this link to let others view the same configuration and results.');
+            }).catch(err => {
+                console.error('Copy failed:', err);
+                alert('Failed to copy link. Check console for details.');
+            });
+        },
+
         // --- fetching & processing ---
 
         async fetchRankedWars () {

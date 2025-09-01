@@ -131,7 +131,7 @@
     <template x-if="step === 2">
         <div>
             <div class="flex items-center justify-between mb-3">
-                <h2 class="text-xl font-semibold">Audit Log</h2>
+                <h2 class="text-xl font-semibold">Attack Log</h2>
                 <button @click="clearAllOverrides()" class="btn-compact bg-muted hover:bg-border text-textPrimary">Reset overrides</button>
             </div>
 
@@ -217,6 +217,7 @@
             </div>
 
             <div class="mt-4 flex gap-2 justify-end">
+                <button @click="copyPayrollLink()" class="btn-compact bg-muted text-white hover:bg-accentHover">📋 Copy Link</button>
                 <button @click="exportWizardCSV()" class="btn-compact bg-muted hover:bg-border text-textPrimary">Export CSV</button>
                 <button @click="exportWizardText()" class="btn-compact bg-muted hover:bg-border text-textPrimary">Export Plain Text</button>
             </div>

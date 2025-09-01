@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { payrollModel } from './rw_payroll_model.js'
 
 // Helpers to make audit rows concise
@@ -407,6 +407,41 @@ describe('payrollModel (new)', () => {
 
             expect(totalDistributed).toBeLessThanOrEqual(poolBeforeTax)
             expect(Math.abs(totalDistributed - poolBeforeTax)).toBeLessThan(1) // Within $1
+        })
+    })
+
+    describe('link copying', () => {
+        beforeEach(() => {
+            // Mock window.location and navigator.clipboard
+            global.window = {
+                location: {
+                    href: 'https://example.com/rw_payroll.html?war=123&profit=1000&tw=10&to=50'
+                }
+            }
+            
+            global.navigator = {
+                clipboard: {
+                    writeText: vi.fn().mockResolvedValue()
+                }
+            }
+            
+            // Mock alert
+            global.alert = vi.fn()
+        })
+
+        it('copies current URL when copyPayrollLink is called', async () => {
+            await m.copyPayrollLink()
+            
+            expect(navigator.clipboard.writeText).toHaveBeenCalledWith('https://example.com/rw_payroll.html?war=123&profit=1000&tw=10&to=50')
+            expect(alert).toHaveBeenCalledWith('Payroll link copied to clipboard! Share this link to let others view the same configuration and results.')
+        })
+
+        it('works with different URL configurations', async () => {
+            window.location.href = 'https://example.com/rw_payroll.html?war=456&profit=2000&cx=100&cs=200&ov=abc123'
+            
+            await m.copyPayrollLink()
+            
+            expect(navigator.clipboard.writeText).toHaveBeenCalledWith('https://example.com/rw_payroll.html?war=456&profit=2000&cx=100&cs=200&ov=abc123')
         })
     })
 })
