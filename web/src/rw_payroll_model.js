@@ -181,9 +181,20 @@ export function payrollModel () {
             this.payPerWarHit = basePerHit * (1 - warTax)
             this.payPerOutsideHit = basePerHit * (1 - outTax)
             this.totalTax = (totalWar * basePerHit * warTax) + (totalOut * basePerHit * outTax)
-            this.wizardReport = Array.from(counts.values())
+            
+            // First pass: calculate exact payouts
+            const wizardReportExact = Array.from(counts.values())
                 .map(c=>({ id:c.name, name:c.name, warHits:c.war, outsideHits:c.outside, payout: (c.war*this.payPerWarHit)+(c.outside*this.payPerOutsideHit) }))
                 .sort((a,b)=>b.payout - a.payout)
+            
+            // Second pass: round individual payouts and adjust tax to maintain total
+            const totalExactPayout = wizardReportExact.reduce((sum, p) => sum + p.payout, 0)
+            const totalRoundedPayout = wizardReportExact.reduce((sum, p) => sum + Math.round(p.payout), 0)
+            const roundingAdjustment = totalRoundedPayout - totalExactPayout
+            
+            // Apply rounding and adjust tax to ensure total never exceeds profit-costs
+            this.wizardReport = wizardReportExact.map(p => ({ ...p, payout: Math.round(p.payout) }))
+            this.totalTax = Math.max(0, this.totalTax - roundingAdjustment)
         },
 
         // --- exports ---

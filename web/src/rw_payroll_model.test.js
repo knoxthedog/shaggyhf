@@ -262,4 +262,151 @@ describe('payrollModel (new)', () => {
             expect(setTimeoutCalled).toBe(false)
         })
     })
+
+    describe('rounding and total conservation', () => {
+        it('ensures total payout never exceeds profit minus costs due to rounding', () => {
+            // Setup scenario that causes rounding to exceed pool
+            m.profitInput = '100'
+            m.xanaxInput = '0'
+            m.auditLog = [
+                row({ player: 'Alice', type: 'War Hit' }),
+                row({ player: 'Alice', type: 'Outside Hit' }),
+                row({ player: 'Alice', type: 'Outside Hit' }),
+                row({ player: 'Bob', type: 'War Hit' }),
+                row({ player: 'Bob', type: 'War Hit' }),
+                row({ player: 'Bob', type: 'Outside Hit' }),
+                row({ player: 'Charlie', type: 'War Hit' }),
+                row({ player: 'Charlie', type: 'Outside Hit' })
+            ]
+            m.warHitTaxInput = 10  // 10%
+            m.outsideHitTaxInput = 50  // 50%
+
+            m.recomputeReportWithOverrides()
+
+            const totalPlayerPayout = m.wizardReport.reduce((sum, p) => sum + p.payout, 0)
+            const totalDistributed = totalPlayerPayout + m.totalTax
+            const poolBeforeTax = 100 // profit - costs
+
+            expect(totalDistributed).toBeLessThanOrEqual(poolBeforeTax)
+            expect(totalDistributed).toBeCloseTo(poolBeforeTax, 0) // Should be very close to pool
+        })
+
+        it('adjusts faction tax when rounding causes overage', () => {
+            // Setup specific scenario that causes +$1 rounding overage
+            m.profitInput = '100'
+            m.auditLog = [
+                row({ player: 'Alice', type: 'War Hit' }),
+                row({ player: 'Alice', type: 'Outside Hit' }),
+                row({ player: 'Alice', type: 'Outside Hit' }),
+                row({ player: 'Bob', type: 'War Hit' }),
+                row({ player: 'Bob', type: 'War Hit' }),
+                row({ player: 'Bob', type: 'Outside Hit' }),
+                row({ player: 'Charlie', type: 'War Hit' }),
+                row({ player: 'Charlie', type: 'Outside Hit' })
+            ]
+            m.warHitTaxInput = 10
+            m.outsideHitTaxInput = 50
+
+            m.recomputeReportWithOverrides()
+
+            // Calculate what tax should be before rounding adjustment
+            const basePerHit = 100 / 8 // 12.5
+            const exactTax = (4 * basePerHit * 0.1) + (4 * basePerHit * 0.5) // 30
+            
+            // Verify that tax was reduced to compensate for rounding overage
+            expect(m.totalTax).toBeLessThan(exactTax)
+            expect(m.totalTax).toBeGreaterThanOrEqual(0)
+        })
+
+        it('handles zero or negative tax after rounding adjustment', () => {
+            // Edge case: rounding overage exceeds available tax
+            m.profitInput = '50'
+            m.auditLog = [
+                row({ player: 'Alice', type: 'War Hit' }),
+                row({ player: 'Alice', type: 'War Hit' }),
+                row({ player: 'Alice', type: 'War Hit' })
+            ]
+            m.warHitTaxInput = 1  // Very low tax
+            m.outsideHitTaxInput = 1
+
+            m.recomputeReportWithOverrides()
+
+            expect(m.totalTax).toBeGreaterThanOrEqual(0)
+            
+            const totalPlayerPayout = m.wizardReport.reduce((sum, p) => sum + p.payout, 0)
+            const totalDistributed = totalPlayerPayout + m.totalTax
+            expect(totalDistributed).toBeLessThanOrEqual(50)
+        })
+
+        it('preserves exact calculation when no rounding adjustment needed', () => {
+            // Scenario where rounding doesn't cause overage (whole numbers)
+            m.profitInput = '120'
+            m.auditLog = [
+                row({ player: 'Alice', type: 'War Hit' }),
+                row({ player: 'Alice', type: 'War Hit' }),
+                row({ player: 'Bob', type: 'War Hit' }),
+                row({ player: 'Bob', type: 'War Hit' })
+            ]
+            m.warHitTaxInput = 10
+
+            m.recomputeReportWithOverrides()
+
+            // 4 hits, 120/4 = 30 per hit, 10% tax = 12 total tax
+            expect(m.totalTax).toBeCloseTo(12, 5)
+            
+            const totalPlayerPayout = m.wizardReport.reduce((sum, p) => sum + p.payout, 0)
+            expect(totalPlayerPayout).toBe(108) // 4 * 27 (30 * 0.9)
+        })
+
+        it('correctly rounds individual payouts to nearest dollar', () => {
+            // Test that individual payouts are properly rounded
+            m.profitInput = '100'
+            m.auditLog = [
+                row({ player: 'Alice', type: 'War Hit' }),
+                row({ player: 'Alice', type: 'Outside Hit' }),
+                row({ player: 'Alice', type: 'Outside Hit' }),
+                row({ player: 'Bob', type: 'War Hit' }),
+                row({ player: 'Bob', type: 'War Hit' }),
+                row({ player: 'Bob', type: 'Outside Hit' })
+            ]
+            m.warHitTaxInput = 10
+            m.outsideHitTaxInput = 50
+
+            m.recomputeReportWithOverrides()
+
+            // All payouts should be whole numbers
+            m.wizardReport.forEach(player => {
+                expect(player.payout).toEqual(Math.round(player.payout))
+                expect(Number.isInteger(player.payout)).toBe(true)
+            })
+        })
+
+        it('maintains total conservation with mixed hit types and taxes', () => {
+            // Complex scenario with various players and hit types
+            m.profitInput = '500'
+            m.spiesInput = '50'
+            m.auditLog = [
+                row({ player: 'Alpha', type: 'War Hit' }),
+                row({ player: 'Alpha', type: 'War Hit' }),
+                row({ player: 'Alpha', type: 'Outside Hit' }),
+                row({ player: 'Beta', type: 'Outside Hit' }),
+                row({ player: 'Beta', type: 'Outside Hit' }),
+                row({ player: 'Beta', type: 'Outside Hit' }),
+                row({ player: 'Gamma', type: 'War Hit' }),
+                row({ player: 'Delta', type: 'War Hit' }),
+                row({ player: 'Delta', type: 'Outside Hit' })
+            ]
+            m.warHitTaxInput = 15
+            m.outsideHitTaxInput = 40
+
+            m.recomputeReportWithOverrides()
+
+            const totalPlayerPayout = m.wizardReport.reduce((sum, p) => sum + p.payout, 0)
+            const totalDistributed = totalPlayerPayout + m.totalTax
+            const poolBeforeTax = 500 - 50 // profit - costs
+
+            expect(totalDistributed).toBeLessThanOrEqual(poolBeforeTax)
+            expect(Math.abs(totalDistributed - poolBeforeTax)).toBeLessThan(1) // Within $1
+        })
+    })
 })
