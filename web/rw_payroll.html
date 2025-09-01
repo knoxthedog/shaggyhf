@@ -6,265 +6,249 @@
     <title>Ranked War Payroll</title>
     <link rel="stylesheet" href="./src/style.css" />
 </head>
-<body class="min-h-screen p-6 text-textPrimary bg-background"
+<body class="min-h-screen p-6 pb-24 text-textPrimary bg-background"
       x-data="payrollModel()"
-      x-effect="updateQueryParams()"
       x-init="init()"
->
-<div class="max-w-2xl mx-auto bg-surface p-6 rounded-xl shadow-md">
-    <h1 class="text-2xl font-bold mb-4 text-textPrimary">Ranked War Payroll</h1>
+      x-effect="updateQueryParams()">
 
-    <!-- API Key input -->
-    <template x-if="!apiKey">
-        <div>
-            <label class="block mb-2 font-medium text-textPrimary">Torn API Key</label>
-            <input
-                    x-model="apiKeyInput"
-                    type="text"
-                    class="input-compact mb-3"
-                    placeholder="Paste your Torn API key here"
-            />
-            <button
-                    @click="saveApiKey"
-                    :disabled="!apiKeyInput"
-                    class="btn-compact bg-accent text-white hover:bg-accentHover disabled:opacity-50"
-            >
-                Save API Key
-            </button>
-        </div>
-    </template>
+<div class="max-w-4xl mx-auto bg-surface p-6 rounded-xl shadow-md">
+    <h1 class="text-2xl font-bold mb-4">Ranked War Payroll</h1>
 
-    <!-- Ranked Wars selector -->
-    <template x-if="apiKey && rankedWars.length">
-        <div>
-            <label class="block mb-2 font-medium text-textPrimary">Select Ranked War</label>
-            <select x-model="selectedWarId" class="input-compact mb-3">
-                <option value="" disabled>Select a war...</option>
-                <template x-for="war in rankedWars" :key="war.id">
-                    <option :value="war.id" x-text="war.opposingFactionName"></option>
-                </template>
-            </select>
-        </div>
-    </template>
+    <!-- STEP 1: Inputs -->
+    <template x-if="step === 1">
+        <div class="space-y-6">
 
-    <!-- Date Overrides for the selected war -->
-    <template x-if="selectedWarId">
-        <div class="flex flex-wrap gap-4 mb-4">
-            <div class="flex-1 min-w-[200px] flex flex-col">
-                <label class="font-medium text-textPrimary mb-1">Start (TCT)</label>
-                <div x-data="startDatetime = datetimeField({ initialEpoch: startOverrideEpoch, onUpdate: epoch => startOverrideEpoch = epoch })"
-                     x-init="startDatetime = $data"
-                     x-effect="startDatetime.setEpoch(startOverrideEpoch)">
-                    <input type="datetime-local"
-                           x-model="datetimeStr"
-                           :disabled="!selectedWarId"
-                           @change="handleChange"
-                           class="input-compact w-full" />
+            <!-- API Key -->
+            <template x-if="!apiKey">
+                <div>
+                    <label class="block mb-2 font-medium">Torn API Key</label>
+                    <input x-model="apiKeyInput" type="text" class="input-compact mb-3" placeholder="Paste your Torn API key here" />
+                    <button @click="saveApiKey" :disabled="!apiKeyInput" class="btn-compact bg-accent text-white hover:bg-accentHover disabled:opacity-50">Save API Key</button>
                 </div>
-            </div>
-            <div class="flex-1 min-w-[200px] flex flex-col">
-                <label class="font-medium text-textPrimary mb-1">End (TCT)</label>
-                <div x-data="endDatetime = datetimeField({ initialEpoch: endOverrideEpoch, onUpdate: epoch => endOverrideEpoch = epoch })"
-                     x-init="endDatetime = $data"
-                     x-effect="endDatetime.setEpoch(endOverrideEpoch)">
-                    <input type="datetime-local"
-                           x-model="datetimeStr"
-                           :disabled="!selectedWarId"
-                           @change="handleChange"
-                           class="input-compact w-full" />
+            </template>
+
+            <!-- War picker -->
+            <template x-if="apiKey && rankedWars?.length">
+                <div>
+                    <label class="block mb-2 font-medium">Select Ranked War</label>
+                    <select x-model="selectedWarId" class="input-compact mb-3">
+                        <option value="" disabled>Select a war...</option>
+                        <template x-for="war in rankedWars" :key="war.id">
+                            <option :value="String(war.id)" x-text="war.opposingFactionName"></option>
+                        </template>
+                    </select>
                 </div>
-            </div>
+            </template>
+
+            <!-- Date overrides -->
+            <template x-if="selectedWarId">
+                <div class="flex flex-wrap gap-4">
+                    <div class="flex-1 min-w-[220px]">
+                        <label class="block mb-1 font-medium">Start (TCT)</label>
+                        <div x-data="startDatetime = datetimeField({ initialEpoch: startOverrideEpoch, onUpdate: epoch => startOverrideEpoch = epoch })"
+                             x-init="startDatetime = $data"
+                             x-effect="startDatetime.setEpoch(startOverrideEpoch)">
+                            <input type="datetime-local" x-model="datetimeStr" :disabled="!selectedWarId" @change="handleChange" class="input-compact w-full"/>
+                        </div>
+                    </div>
+                    <div class="flex-1 min-w-[220px]">
+                        <label class="block mb-1 font-medium">End (TCT)</label>
+                        <div x-data="endDatetime = datetimeField({ initialEpoch: endOverrideEpoch, onUpdate: epoch => endOverrideEpoch = epoch })"
+                             x-init="endDatetime = $data"
+                             x-effect="endDatetime.setEpoch(endOverrideEpoch)">
+                            <input type="datetime-local" x-model="datetimeStr" :disabled="!selectedWarId" @change="handleChange" class="input-compact w-full"/>
+                        </div>
+                    </div>
+                </div>
+            </template>
+
+            <!-- Money inputs -->
+            <template x-if="selectedWarId">
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="font-medium block mb-1">Profit ($)</label>
+                        <input type="text" x-model="profitInput" inputmode="numeric"
+                               :class="['input-compact w-full', isProfitInvalid ? 'border-dangerText' : 'border-border']"
+                               placeholder="Enter profit amount" />
+                    </div>
+                    <div>
+                        <label class="font-medium block mb-1">Costs</label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <input x-model="xanaxInput"   inputmode="numeric" placeholder="Xanax"  class="input-compact" />
+                            <input x-model="spiesInput"   inputmode="numeric" placeholder="Spies"  class="input-compact" />
+                            <input x-model="medicalInput" inputmode="numeric" placeholder="Medical" class="input-compact" />
+                            <input x-model="otherInput"   inputmode="numeric" placeholder="Other"  class="input-compact" />
+                        </div>
+                        <div class="text-sm text-textSecondary mt-1">
+                            Total: <span class="font-medium" x-text="fmtMoney(totalCosts)"></span>
+                        </div>
+                    </div>
+                </div>
+            </template>
+
+            <!-- Taxes -->
+            <template x-if="selectedWarId">
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="font-medium block mb-1">War Hit Tax (%)</label>
+                        <input x-model.number="warHitTaxInput" type="number" min="0" max="100"
+                               :class="['input-compact w-full', isWarHitTaxInvalid ? 'border-dangerText' : 'border-border']"
+                               placeholder="e.g., 10 for 10%" />
+                    </div>
+                    <div>
+                        <label class="font-medium block mb-1">Outside Hit Tax (%)</label>
+                        <input x-model.number="outsideHitTaxInput" type="number" min="0" max="100"
+                               :class="['input-compact w-full', isOutsideHitTaxInvalid ? 'border-dangerText' : 'border-border']"
+                               placeholder="e.g., 50 for 50%" />
+                    </div>
+                </div>
+            </template>
+
+            <template x-if="isLoadingWarList">
+                <div class="text-sm text-textSecondary">
+                    <span class="animate-spin inline-block w-4 h-4 border-2 border-border border-t-transparent rounded-full mr-2"></span>
+                    Fetching the faction rap sheet...
+                </div>
+            </template>
+
+            <template x-if="isLoadingWarReport">
+                <div class="text-sm text-textSecondary">
+                    <span class="animate-spin inline-block w-4 h-4 border-2 border-border border-t-transparent rounded-full mr-2"></span>
+                    Checking who punched who...
+                </div>
+            </template>
+
+            <template x-if="error">
+                <div class="mt-2 p-3 rounded border border-dangerText bg-dangerBg text-dangerText text-sm">
+                    ❌ <div x-text="error"></div>
+                </div>
+            </template>
+
         </div>
     </template>
 
-    <!-- Profit and Cost inputs -->
-    <template x-if="selectedWarId">
-        <div class="flex flex-wrap gap-4 mb-4">
-            <div class="flex-1 min-w-[200px] flex flex-col">
-                <label class="font-medium text-textPrimary mb-1">Profit ($)</label>
-                <input type="text"
-                       x-model="profitInput"
-                       inputmode="numeric"
-                       @blur="validateProfit"
-                       :class="['input-compact w-full', isProfitInvalid ? 'border-dangerText' : 'border-border']"
-                       placeholder="Enter profit amount" />
+    <!-- STEP 2: Audit & Overrides -->
+    <template x-if="step === 2">
+        <div>
+            <div class="flex items-center justify-between mb-3">
+                <h2 class="text-xl font-semibold">Attack Log</h2>
+                <button @click="clearAllOverrides()" class="btn-compact bg-muted hover:bg-border text-textPrimary">Reset overrides</button>
             </div>
-            <div class="flex-1 min-w-[200px] flex flex-col">
-                <label class="font-medium text-textPrimary mb-1">Cost ($)</label>
-                <input type="text"
-                       x-model="costsInput"
-                       inputmode="numeric"
-                       @blur="validateCosts"
-                       :class="['input-compact w-full', isCostsInvalid ? 'border-dangerText' : 'border-border']"
-                       placeholder="Enter cost amount" />
-            </div>
+
+            <template x-if="auditLog?.length">
+                <div class="overflow-x-auto">
+                    <table class="table-auto w-full border border-border text-sm">
+                        <thead class="bg-muted">
+                        <tr>
+                            <th class="border border-border p-2"></th>
+                            <th class="border border-border p-2 text-left">Attacker</th>
+                            <th class="border border-border p-2 text-left">Type</th>
+                            <th class="border border-border p-2 text-left">Opponent</th>
+                            <th class="border border-border p-2 text-left">Result</th>
+                            <th class="border border-border p-2 text-left">Counted</th>
+                            <th class="border border-border p-2 text-left">Timestamp (TCT)</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <template x-for="(entry, i) in auditLog" :key="i">
+                            <tr :class="rowClasses(entry, i)">
+                                <td class="border border-border p-2">
+                                    <input
+                                            type="checkbox"
+                                            :checked="(overrides[rowKey(entry,i)] ?? entry.counted)"
+                                            @change="setOverride(rowKey(entry,i), $event.target.checked)"
+                                            title="Include this hit in payment"
+                                    />
+                                </td>
+                                <td class="border border-border p-2" x-text="entry.player"></td>
+                                <td class="border border-border p-2" x-text="entry.type"></td>
+                                <td class="border border-border p-2" x-text="entry.opponent"></td>
+                                <td class="border border-border p-2" x-text="entry.result"></td>
+                                <td class="border border-border p-2" x-text="entry.counted ? 'Yes' : 'No'"></td>
+                                <td class="border border-border p-2" x-text="entry.timestamp"></td>
+                            </tr>
+                        </template>
+                        </tbody>
+                    </table>
+                </div>
+            </template>
+
+            <template x-if="!auditLog?.length">
+                <div class="text-sm text-textSecondary">No audit rows found.</div>
+            </template>
         </div>
     </template>
 
-    <!-- War Hit and Outside Hit Tax inputs -->
-    <template x-if="selectedWarId">
-        <div class="flex flex-wrap gap-4 mb-4">
-            <div class="flex-1 min-w-[200px] flex flex-col">
-                <label class="font-medium text-textPrimary mb-1">War Hit Tax (%)</label>
-                <input
-                        x-model.number="warHitTaxInput"
-                        type="number"
-                        min="0"
-                        max="100"
-                        @blur="validateWarHitTax"
-                        :class="['input-compact w-full', isWarHitTaxInvalid ? 'border-dangerText' : 'border-border']"
-                        placeholder="e.g., 10 for 10%"
-                />
-            </div>
-            <div class="flex-1 min-w-[200px] flex flex-col">
-                <label class="font-medium text-textPrimary mb-1">Outside Hit Tax (%)</label>
-                <input
-                        x-model.number="outsideHitTaxInput"
-                        type="number"
-                        min="0"
-                        max="100"
-                        @blur="validateOutsideHitTax"
-                        :class="['input-compact w-full', isOutsideHitTaxInvalid ? 'border-dangerText' : 'border-border']"
-                        placeholder="e.g., 50 for 50%"
-                />
-            </div>
-        </div>
-    </template>
-
-    <!-- Generate Report button -->
-    <template x-if="selectedWarId">
+    <!-- STEP 3: Payroll Report (recomputed with overrides) -->
+    <template x-if="step === 3">
         <div class="mt-4">
-            <button
-                    @click="generateReport"
-                    :disabled="!canGenerateReport()"
-                    class="btn-compact bg-accent text-white hover:bg-accentHover disabled:opacity-50"
-            >
-                Generate Report
-            </button>
-        </div>
-    </template>
+            <div class="text-sm mb-6 grid gap-y-1" style="grid-template-columns: max-content auto; column-gap: 0.5ch;">
+                <div>Faction Take:</div>
+                <div class="font-medium" x-text="formatCurrency(totalTax)"></div>
 
-    <!-- Audit Log toggle -->
-    <template x-if="report.length">
-        <div class="mt-4 flex justify-end">
-            <button
-                    @click="showAudit = !showAudit"
-                    class="text-sm text-accent hover:underline focus:outline-none"
-            >
-                <span x-text="showAudit ? 'Show Summary' : 'Show Audit Log'"></span>
-            </button>
-        </div>
-    </template>
+                <div>Pay Per War Hit:</div>
+                <div class="font-medium" x-text="formatCurrency(payPerWarHit)"></div>
 
-    <!-- Report output -->
-    <template x-if="report.length && !showAudit">
+                <div>Pay Per Outside Hit:</div>
+                <div class="font-medium" x-text="formatCurrency(payPerOutsideHit)"></div>
+            </div>
 
-       <div class="mt-6 overflow-x-auto">
-
-           <!-- Summary section -->
-           <div class="text-sm text-textPrimary mb-6 grid gap-y-1" style="grid-template-columns: max-content auto; column-gap: 0.5ch;">
-               <div>Faction Take:</div>
-               <div class="font-medium" x-text="formatCurrency(totalTax)"></div>
-
-               <div>Pay Per War Hit:</div>
-               <div class="font-medium" x-text="formatCurrency(payPerWarHit)"></div>
-
-               <div>Pay Per Outside Hit:</div>
-               <div class="font-medium" x-text="formatCurrency(payPerOutsideHit)"></div>
-           </div>
-
-           <!-- Payroll table -->
-           <table class="table-auto w-full border border-border text-sm text-textPrimary">
-                <thead class="bg-muted">
-                <tr>
-                    <th class="border border-border p-2 text-left">Player</th>
-                    <th class="border border-border p-2 text-right">War Hits</th>
-                    <th class="border border-border p-2 text-right">Outside Hits</th>
-                    <th class="border border-border p-2 text-right">Payout ($)</th>
-                </tr>
-                </thead>
-                <tbody>
-                <template x-for="row in report" :key="row.id">
+            <div class="overflow-x-auto">
+                <table class="table-auto w-full border border-border text-sm text-textPrimary">
+                    <thead class="bg-muted">
                     <tr>
-                        <td class="border border-border p-2" x-text="row.name"></td>
-                        <td class="border border-border p-2 text-right" x-text="row.warHits"></td>
-                        <td class="border border-border p-2 text-right" x-text="row.outsideHits"></td>
-                        <td class="border border-border p-2 text-right" x-text="formatCurrency(row.payout)"></td>
+                        <th class="border border-border p-2 text-left">Player</th>
+                        <th class="border border-border p-2 text-right">War Hits</th>
+                        <th class="border border-border p-2 text-right">Outside Hits</th>
+                        <th class="border border-border p-2 text-right">Payout ($)</th>
                     </tr>
-                </template>
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                    <template x-for="row in wizardReport" :key="row.id">
+                        <tr>
+                            <td class="border border-border p-2" x-text="row.name"></td>
+                            <td class="border border-border p-2 text-right" x-text="row.warHits"></td>
+                            <td class="border border-border p-2 text-right" x-text="row.outsideHits"></td>
+                            <td class="border border-border p-2 text-right" x-text="formatCurrency(row.payout)"></td>
+                        </tr>
+                    </template>
+                    </tbody>
+                </table>
+            </div>
 
             <div class="mt-4 flex gap-2 justify-end">
-                <button
-                        @click="exportReportAsCSV"
-                        class="btn-compact bg-muted hover:bg-border text-textPrimary"
-                >
-                    Export CSV
-                </button>
-                <button
-                        @click="exportReportAsText"
-                        class="btn-compact bg-muted hover:bg-border text-textPrimary"
-                >
-                    Export Plain Text
-                </button>
+                <button @click="copyPayrollLink()" class="btn-compact bg-muted text-white hover:bg-accentHover">📋 Copy Link</button>
+                <button @click="exportWizardCSV()" class="btn-compact bg-muted hover:bg-border text-textPrimary">Export CSV</button>
+                <button @click="exportWizardText()" class="btn-compact bg-muted hover:bg-border text-textPrimary">Export Plain Text</button>
             </div>
         </div>
     </template>
 
-    <!-- Audit Log output -->
-    <template x-if="showAudit && auditLog.length">
-        <div class="mt-6 overflow-x-auto">
-            <table class="table-auto w-full border border-border text-sm text-textPrimary">
-                <thead class="bg-muted">
-                <tr>
-                    <th class="border border-border p-2 text-left">Attacker</th>
-                    <th class="border border-border p-2 text-left">Type</th>
-                    <th class="border border-border p-2 text-left">Opponent</th>
-                    <th class="border border-border p-2 text-left">Result</th>
-                    <th class="border border-border p-2 text-left">Counted</th>
-                    <th class="border border-border p-2 text-left">Timestamp (TCT)</th>
-                </tr>
-                </thead>
-                <tbody>
-                <template x-for="(entry, i) in auditLog" :key="i">
-                    <tr :class="{
-                            'bg-successBg text-successText': entry.counted,
-                            'bg-dangerBg text-dangerText': !entry.isAttackerFacMember && !entry.counted
-                        }">
-                        <td class="border border-border p-2" x-text="entry.player"></td>
-                        <td class="border border-border p-2" x-text="entry.type"></td>
-                        <td class="border border-border p-2" x-text="entry.opponent"></td>
-                        <td class="border border-border p-2" x-text="entry.result"></td>
-                        <td class="border border-border p-2" x-text="entry.counted ? 'Yes' : 'No'"></td>
-                        <td class="border border-border p-2" x-text="entry.timestamp"></td>
-                    </tr>
-                </template>
-                </tbody>
-            </table>
-        </div>
-    </template>
+</div>
 
-    <!-- Loading state -->
-    <template x-if="isLoading">
-        <div class="text-sm text-textSecondary mt-4">
-            <span class="animate-spin inline-block w-4 h-4 border-2 border-border border-t-transparent rounded-full mr-2"></span>
-            Checking who punched who...
-        </div>
-    </template>
+<!-- Fixed wizard footer like matcher -->
+<div class="fixed bottom-0 left-0 right-0 bg-surface border-t border-border shadow-md px-6 py-3 z-50">
+    <div class="max-w-4xl mx-auto flex items-center justify-between">
+        <button @click="prevStep()" class="btn-compact bg-muted hover:bg-border disabled:opacity-50">← Back</button>
 
-    <!-- Error state -->
-    <template x-if="error">
-        <div class="mt-2 p-3 rounded border border-dangerText bg-dangerBg text-dangerText text-sm">
-            ❌ <div x-text="error"></div>
+        <div class="flex items-center gap-2">
+            <template x-for="n in 3">
+                <div :class="{
+              'w-4 h-4 rounded-full': true,
+              'bg-accent': step === n,
+              'bg-muted': step !== n
+            }"></div>
+            </template>
         </div>
-    </template>
+
+        <button @click="nextStep()" :disabled="!canProceed() || step === 3" class="btn-compact bg-accent text-white hover:bg-accentHover disabled:opacity-50">Next →</button>
+    </div>
 </div>
 
 <script type="module">
     import Alpine from 'alpinejs'
     import { payrollModel } from './src/rw_payroll_model.js'
-    import { datetimeField } from './src/datetime_model.js';
+    import { datetimeField } from './src/datetime_model.js'
 
     window.Alpine = Alpine
     Alpine.data('payrollModel', payrollModel)

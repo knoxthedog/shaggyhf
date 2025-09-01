@@ -1,96 +1,240 @@
-import {newTornApiClient, collectRankedWarHitsFromData} from './torn_api.js'
+import { newTornApiClient, collectRankedWarHitsFromData } from './torn_api.js'
 
-const FACTION_ID = 49297; // Shaggy Hi-Fidelity
+// Shaggy Hi-Fidelity faction id (used by the hit collector)
+const FACTION_ID = 49297
 
-export function payrollModel() {
+// --- utils ---
+
+const clamp = (n, min, max) => Math.min(max, Math.max(min, n))
+
+const toNumber = (v) => {
+    if (typeof v === 'number') return isFinite(v) ? v : 0
+    if (v == null) return 0
+    const s = String(v).trim().replace(/^\$/, '').replace(/,/g, '')
+    const n = parseFloat(s)
+    return isNaN(n) ? 0 : n
+}
+
+const fmtMoney = (n) => {
+    const num = Math.round(typeof n === 'number' ? n : toNumber(n))
+    return `$${num.toLocaleString()}`
+}
+
+const hash32 = (s) => { let h=5381; for (let i=0;i<s.length;i++) h=((h<<5)+h)^s.charCodeAt(i); return h>>>0 }
+
+const b64url = {
+    enc: (str) => btoa(str).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''),
+    dec: (str) => { const pad = str.length%4===2?'==':str.length%4===3?'=':''; return atob(str.replace(/-/g,'+').replace(/_/g,'/')+pad) }
+}
+
+export function payrollModel () {
     return {
+        // --- core state ---
         apiKey: null,
         apiKeyInput: '',
         apiClient: null,
+
         rankedWars: [],
         selectedWarId: '',
-        isLoading: false,
-        showAudit: false,
-        showNonFacHitsInAudit: false,
-        error: '',
-        initialQueryParams: new URLSearchParams(window.location.search),
 
-        // Inputs
-        warHitTaxInput: '',
-        outsideHitTaxInput: '',
-        profitInput: '',
-        costsInput: '',
+        // time overrides (epoch seconds, TCT)
         startOverrideEpoch: null,
         endOverrideEpoch: null,
 
-        // Input validation flags
-        isProfitInvalid: false,
-        isCostsInvalid: false,
-        isWarHitTaxInvalid: false,
-        isOutsideHitTaxInvalid: false,
+        isLoadingWarList: false,
+        isLoadingWarReport: false,
+        error: '',
+        initialQueryParams: new URLSearchParams(window.location.search),
 
-        // Report output
-        report: [],
+        // --- wizard nav ---
+
+        step: 1,
+
+        nextStep () {
+            if (this.step === 1) {
+                this.generateAudit().then(() => { this.step = 2 }).catch(e => { this.error = e?.message || String(e) })
+            } else if (this.step === 2) {
+                this.recomputeReportWithOverrides()
+                this.step = 3
+            }
+        },
+
+        prevStep () {
+            if (this.step === 1) {
+                window.location.href = './index.html';
+            } else {
+                this.step = clamp(this.step - 1, 1, 3)
+                // Ensure selectedWarId is preserved when returning to step 1
+                if (this.step === 1 && this.selectedWarId) {
+                    // Force UI re-sync by briefly clearing and restoring the selection
+                    const currentWarId = this.selectedWarId
+                    this.selectedWarId = ''
+                    // Use setTimeout to ensure DOM updates
+                    setTimeout(() => {
+                        this.selectedWarId = currentWarId
+                    }, 0)
+                }
+            }
+        },
+
+        canProceed () {
+            if (this.step === 1) {
+                return !!this.selectedWarId &&
+                    !this.isProfitInvalid &&
+                    !this.isCostsInvalid &&
+                    !this.isWarHitTaxInvalid &&
+                    !this.isOutsideHitTaxInvalid &&
+                    !this.isLoadingWarReport &&
+                    !this.isLoadingWarList
+            }
+            if (this.step === 2) return true
+            return false
+        },
+
+        // --- inputs ---
+        profitInput: '',
+        xanaxInput: '',
+        spiesInput: '',
+        medicalInput: '',
+        otherInput: '',
+        get totalCosts () { return toNumber(this.xanaxInput) + toNumber(this.spiesInput) + toNumber(this.medicalInput) + toNumber(this.otherInput) },
+        get isProfitInvalid () { const n = toNumber(this.profitInput); return !isFinite(n) || n < 0 },
+        get isCostsInvalid () { return [this.xanaxInput,this.spiesInput,this.medicalInput,this.otherInput].some(v => toNumber(v) < 0) },
+
+        warHitTaxInput: 10,
+        outsideHitTaxInput: 50,
+        get isWarHitTaxInvalid () { const v = toNumber(this.warHitTaxInput); return v < 0 || v > 100 },
+        get isOutsideHitTaxInvalid () { const v = toNumber(this.outsideHitTaxInput); return v < 0 || v > 100 },
+
+        // --- audit & overrides (step 2) ---
+
         auditLog: [],
+        showNonFacHitsInAudit: false,
+        overrides: {}, // Map<rowKey, true|false>
+
+        setOverride (key, checked) { this.overrides[key] = !!checked; this.updateQueryParams() },
+
+        clearOverride (key) { delete this.overrides[key]; this.updateQueryParams() },
+
+        clearAllOverrides () { this.overrides = {}; this.updateQueryParams() },
+
+        rowKey (row, i) { return hash32([row.player??'',row.type??'',row.opponent??'',row.result??'',row.timestamp??'',i].join('|')).toString(36) },
+
+        rowClasses (row, i) {
+            const key = this.rowKey(row, i)
+            const checked = !!(this.overrides[key] ?? row.counted)   // checkbox state
+            const algo = !!row.counted                               // algorithm selection
+
+            // Rules:
+            // - algo && checked  -> green
+            // - algo && !checked -> yellow
+            // - !algo && checked -> yellow
+            // - else             -> default
+            if (algo && checked) return 'bg-successBg text-successText'
+            if ((algo && !checked) || (!algo && checked)) return 'bg-warningBg text-warningText'
+            return '' // default styling
+        },
+
+        encodeOverrides () {
+            const entries = Object.entries(this.overrides).filter(([,v]) => v === true || v === false)
+            return entries.length ? b64url.enc(JSON.stringify(entries)) : ''
+        },
+
+        decodeOverrides (ov) {
+            try { const entries = JSON.parse(b64url.dec(ov)); const o={}; for (const [k,v] of entries) o[k]=!!v; this.overrides=o } catch {}
+        },
+
+        // --- final report (step 3) ---
+
+        wizardReport: [],
         totalTax: 0,
         payPerWarHit: 0,
         payPerOutsideHit: 0,
 
-        init() {
-            this.apiKey = localStorage.getItem('tornApiKey')
-            if (this.apiKey) {
-                this.setupApiClient()
-                this.fetchRankedWars().then(() => this.applyInitialQueryParams())
+        recomputeReportWithOverrides () {
+            const audit = (this.auditLog || []).map((row,i)=>({
+                ...row,
+                countedEffective: (this.overrides[this.rowKey(row,i)] ?? row.counted) ? true : false
+            }))
+            const counts = new Map()
+            let totalWar=0, totalOut=0
+            for (const r of audit) {
+                if (!r.countedEffective) continue
+                if (!r.isAttackerFacMember) continue
+                const type = (r.type || '').toLowerCase().includes('outside') ? 'outside' : 'war'
+                const key = r.player
+                if (!counts.has(key)) counts.set(key, { name:r.player, war:0, outside:0 })
+                counts.get(key)[type]++
+                if (type==='war') totalWar++; else totalOut++
             }
-            this.$watch('selectedWarId', (newId) => {
-                this.onSelectedWarChange(newId);
+            const profit = toNumber(this.profitInput)
+            const poolBeforeTax = Math.max(0, profit - this.totalCosts)
+            const totalHits = totalWar + totalOut
+            if (!totalHits) {
+                this.wizardReport = Array.from(counts.values()).map(c=>({ id:c.name, name:c.name, warHits:c.war, outsideHits:c.outside, payout:0 }))
+                this.payPerWarHit = 0; this.payPerOutsideHit = 0; this.totalTax = 0
+                return
+            }
+            const basePerHit = poolBeforeTax / totalHits
+            const warTax = Math.min(1, Math.max(0, toNumber(this.warHitTaxInput)/100))
+            const outTax = Math.min(1, Math.max(0, toNumber(this.outsideHitTaxInput)/100))
+            this.payPerWarHit = basePerHit * (1 - warTax)
+            this.payPerOutsideHit = basePerHit * (1 - outTax)
+            this.totalTax = (totalWar * basePerHit * warTax) + (totalOut * basePerHit * outTax)
+            
+            // First pass: calculate exact payouts
+            const wizardReportExact = Array.from(counts.values())
+                .map(c=>({ id:c.name, name:c.name, warHits:c.war, outsideHits:c.outside, payout: (c.war*this.payPerWarHit)+(c.outside*this.payPerOutsideHit) }))
+                .sort((a,b)=>b.payout - a.payout)
+            
+            // Second pass: round individual payouts and adjust tax to maintain total
+            const totalExactPayout = wizardReportExact.reduce((sum, p) => sum + p.payout, 0)
+            const totalRoundedPayout = wizardReportExact.reduce((sum, p) => sum + Math.round(p.payout), 0)
+            const roundingAdjustment = totalRoundedPayout - totalExactPayout
+            
+            // Apply rounding and adjust tax to ensure total never exceeds profit-costs
+            this.wizardReport = wizardReportExact.map(p => ({ ...p, payout: Math.round(p.payout) }))
+            this.totalTax = Math.max(0, this.totalTax - roundingAdjustment)
+        },
+
+        // --- exports ---
+
+        formatCurrency (value) { return fmtMoney(value) },
+
+        fmtMoney,
+        exportWizardCSV () {
+            const rows = [['Player','War Hits','Outside Hits','Payout ($)']]
+            for (const r of this.wizardReport) rows.push([r.name, r.warHits, r.outsideHits, Math.round(r.payout)])
+            const csv = rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n')
+            const blob = new Blob([csv], { type:'text/csv;charset=utf-8;' })
+            const url = URL.createObjectURL(blob)
+            const a = document.createElement('a'); a.href=url; a.download='rw_payroll.csv'
+            document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url)
+        },
+
+        exportWizardText () {
+            const lines = this.wizardReport.map(r => `${r.name}: ${r.warHits} war, ${r.outsideHits} outside — ${fmtMoney(Math.round(r.payout))}`)
+            const blob = new Blob([lines.join('\n')], { type:'text/plain;charset=utf-8;' })
+            const url = URL.createObjectURL(blob)
+            const a = document.createElement('a'); a.href=url; a.download='rw_payroll.txt'
+            document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url)
+        },
+
+        copyPayrollLink () {
+            const currentUrl = window.location.href
+            navigator.clipboard.writeText(currentUrl).then(() => {
+                alert('Payroll link copied to clipboard! Share this link to let others view the same configuration and results.');
+            }).catch(err => {
+                console.error('Copy failed:', err);
+                alert('Failed to copy link. Check console for details.');
             });
         },
 
-        saveApiKey() {
-            if (!this.apiKeyInput) return
-            this.apiKey = this.apiKeyInput
-            localStorage.setItem('tornApiKey', this.apiKey)
-            this.setupApiClient()
-            this.fetchRankedWars().then(() => this.applyInitialQueryParams())
-        },
+        // --- fetching & processing ---
 
-        applyInitialQueryParams() {
-            const p = this.initialQueryParams;
-
-            const war = p.get('war');
-            if (war && this.findRankedWar(war)) {
-                this.selectedWarId = war;
-            }
-            if (p.get('profit')) this.profitInput = p.get('profit');
-            if (p.get('costs')) this.costsInput = p.get('costs');
-            if (p.get('warTax')) this.warHitTaxInput = Number(p.get('warTax'));
-            if (p.get('outsideTax')) this.outsideHitTaxInput = Number(p.get('outsideTax'));
-            if (p.get('start')) this.startOverrideEpoch = Number(p.get('start'));
-            if (p.get('end')) this.endOverrideEpoch = Number(p.get('end'));
-        },
-
-        updateQueryParams() {
-            const params = new URLSearchParams();
-            if (this.selectedWarId) params.set('war', this.selectedWarId);
-            if (this.profitInput) params.set('profit', this.profitInput);
-            if (this.costsInput) params.set('costs', this.costsInput);
-            if (this.warHitTaxInput !== '') params.set('warTax', this.warHitTaxInput);
-            if (this.outsideHitTaxInput !== '') params.set('outsideTax', this.outsideHitTaxInput);
-            if (this.startOverrideEpoch) params.set('start', this.startOverrideEpoch);
-            if (this.endOverrideEpoch) params.set('end', this.endOverrideEpoch);
-            window.history.replaceState({}, '', `${location.pathname}?${params.toString()}`);
-        },
-
-        setupApiClient() {
-            this.apiClient = newTornApiClient(this.apiKey, fetch, 'https://api.torn.com/v2')
-        },
-
-        async fetchRankedWars() {
-            this.isLoading = true
-            this.error = ''
+        async fetchRankedWars () {
+            this.isLoadingWarList = true; this.error = ''
             try {
-                const FACTION_ID = 49297
                 const result = await this.apiClient.fetchRankedWars(FACTION_ID)
                 this.rankedWars = Object.entries(result.rankedwars).map(([id, war]) => ({
                     id: war.id,
@@ -101,210 +245,124 @@ export function payrollModel() {
                     opposingFactionName: war.factions.find(f => f.id !== FACTION_ID)?.name || 'Unknown Faction',
                 }))
             } catch (err) {
-                console.error(err)
-                this.error = 'Failed to fetch ranked wars.'
+                console.error(err); this.error = 'Failed to fetch ranked wars.'
             } finally {
-                this.isLoading = false
+                this.isLoadingWarList = false
             }
         },
 
-        findRankedWar(id) {
-            return this.rankedWars.find(w => `${w.id}` === `${id}`);
+        findRankedWar (id) {
+            return this.rankedWars.find(w => `${w.id}` === `${id}`)
         },
 
-        onSelectedWarChange(newId) {
-            const id = Number(newId);
-            if (!isNaN(id)) {
-                const war = this.rankedWars.find(w => w.id === id);
-                if (war) {
-                    this.startOverrideEpoch = war.start;
-                    this.endOverrideEpoch = war.end;
-                } else {
-                    this.startOverrideEpoch = null;
-                    this.endOverrideEpoch = null;
-                }
-            } else {
-                this.startOverrideEpoch = null;
-                this.endOverrideEpoch = null;
-            }
-        },
-
-        canGenerateReport() {
-            const profit = this.parseNumber(this.profitInput);
-            const costs = this.parseNumber(this.costsInput);
-            const warHitTax = this.parseNumber(this.warHitTaxInput);
-            const outsideHitTax = this.parseNumber(this.outsideHitTaxInput);
-            return !!(
-                this.selectedWarId &&
-                profit != null &&
-                costs != null &&
-                warHitTax != null &&
-                outsideHitTax != null &&
-                this.startOverrideEpoch != null &&
-                this.endOverrideEpoch != null
-            )
-        },
-
-        parseNumber(value) {
-            if (typeof value === 'number' && !isNaN(value)) {
-                return value;
-            }
-            if (!value || typeof value !== 'string') {
-                return null;
-            }
-            const cleaned = value.trim().replace(/^\$/, '').replace(/,/g, '');
-            const num = parseFloat(cleaned);
-            return isNaN(num) ? null : num;
-        },
-
-        formatCurrency(value) {
-            return `$${Math.round(value).toLocaleString()}`;
-        },
-
-        validateProfit() {
-            const profit = this.parseNumber(this.profitInput);
-            this.isProfitInvalid = profit == null || profit < 0;
-        },
-
-        validateCosts() {
-            const costs = this.parseNumber(this.costsInput);
-            this.isCostsInvalid = costs == null || costs < 0;
-        },
-
-        validateWarHitTax() {
-            const val = this.parseNumber(this.warHitTaxInput);
-            this.isWarHitTaxInvalid = val == null || val < 0 || val > 100;
-        },
-
-        validateOutsideHitTax() {
-            const val = this.parseNumber(this.outsideHitTaxInput);
-            this.isOutsideHitTaxInvalid = val == null || val < 0 || val > 100;
-        },
-
-        async generateReport() {
-            this.isLoading = true
-            this.error = ''
-            this.report = []
-
+        async generateAudit () {
+            this.isLoadingWarReport = true; this.error = ''
             try {
                 const rankedWar = this.findRankedWar(this.selectedWarId)
+                let { start, end } = rankedWar || {}
+                if (this.startOverrideEpoch) start = this.startOverrideEpoch
+                if (this.endOverrideEpoch) end = this.endOverrideEpoch
+                if (!start || !end) { this.error = 'Invalid war time range selected.'; return }
 
-                let {start, end} = rankedWar;
-                if (this.startOverrideEpoch) {
-                    start = this.startOverrideEpoch;
-                }
-                if (this.endOverrideEpoch) {
-                    end = this.endOverrideEpoch;
-                }
-                if (!start || !end) {
-                    this.error = 'Invalid war time range selected.';
-                    return;
-                }
-
-                const attacks = await this.apiClient.fetchAttacksInWindow(start, end);
-                const {participants, auditLog} = collectRankedWarHitsFromData(rankedWar, attacks, FACTION_ID);
+                const attacks = await this.apiClient.fetchAttacksInWindow(start, end)
+                const { participants, auditLog } = collectRankedWarHitsFromData(rankedWar, attacks, FACTION_ID)
 
                 this.auditLog = auditLog.map(e => ({
                     ...e,
-                    timestamp: new Date(e.timestamp * 1000).toISOString().replace('T', ' ').replace('Z', '')
-                }));
-
+                    timestamp: new Date(e.timestamp * 1000).toISOString().replace('T',' ').replace('Z','')
+                }))
                 if (!this.showNonFacHitsInAudit) {
-                    this.auditLog = this.auditLog.filter(e => e.isAttackerFacMember);
+                    this.auditLog = this.auditLog.filter(e => e.isAttackerFacMember)
                 }
 
-                this.generateReportFromHitsData(participants);
+                // hydrate overrides from URL if present
+                const params = new URLSearchParams(location.search)
+                const ov = params.get('ov'); if (ov) this.decodeOverrides(ov)
 
             } catch (err) {
-                console.error(err)
-                this.error = 'Failed to generate report.'
+                console.error(err); this.error = 'Failed to generate audit.'
             } finally {
-                this.isLoading = false
+                this.isLoadingWarReport = false
             }
         },
 
-        generateReportFromHitsData(hitsByPlayer) {
-            this.error = ''
-            this.report = []
+        // --- query param sync & lifecycle ---
 
-            const profit = this.parseNumber(this.profitInput);
-            const costs = this.parseNumber(this.costsInput);
-            const warHitTax = this.parseNumber(this.warHitTaxInput);
-            const outsideHitTax = this.parseNumber(this.outsideHitTaxInput);
+        updateQueryParams () {
+            const params = new URLSearchParams(location.search)
+            const setIf = (k, v) => (v !== undefined && v !== null && v !== '' ? params.set(k, v) : params.delete(k))
+            setIf('war', this.selectedWarId)
+            setIf('start', this.startOverrideEpoch)
+            setIf('end', this.endOverrideEpoch)
+            setIf('profit', toNumber(this.profitInput) || '')
+            // breakdown costs
+            const setNum = (k,v) => (toNumber(v) ? params.set(k, toNumber(v)) : params.delete(k))
+            setNum('cx', this.xanaxInput); setNum('cs', this.spiesInput); setNum('cm', this.medicalInput); setNum('co', this.otherInput)
+            // taxes
+            setIf('tw', toNumber(this.warHitTaxInput) || '')
+            setIf('to', toNumber(this.outsideHitTaxInput) || '')
+            // overrides
+            const ov = this.encodeOverrides(); if (ov) params.set('ov', ov); else params.delete('ov')
 
-            if (profit == null || costs == null || warHitTax == null || outsideHitTax == null) {
-                this.error = 'Invalid input values';
-                this.isLoading = false;
-                return;
-            }
+            const qs = params.toString()
+            const newUrl = qs ? `${location.pathname}?${qs}` : location.pathname
+            if (newUrl !== location.href) history.replaceState(null, '', newUrl)
+        },
 
-            let totalWarHits = 0;
-            let totalOutsideHits = 0;
+        applyInitialQueryParams () {
+            const p = this.initialQueryParams
+            if (p.has('war')) this.selectedWarId = String(p.get('war'))
+            if (p.has('start')) this.startOverrideEpoch = Number(p.get('start'))
+            if (p.has('end')) this.endOverrideEpoch = Number(p.get('end'))
+            if (p.has('profit')) this.profitInput = p.get('profit')
+            if (p.has('cx')) this.xanaxInput = p.get('cx')
+            if (p.has('cs')) this.spiesInput = p.get('cs')
+            if (p.has('cm')) this.medicalInput = p.get('cm')
+            if (p.has('co')) this.otherInput = p.get('co')
+            if (p.has('tw')) this.warHitTaxInput = Number(p.get('tw'))
+            if (p.has('to')) this.outsideHitTaxInput = Number(p.get('to'))
+            const ov = p.get('ov'); if (ov) this.decodeOverrides(ov)
+        },
 
-            hitsByPlayer.forEach(p => {
-                totalWarHits += p.warHits?.length || 0;
-                totalOutsideHits += p.outsideHits?.length || 0;
-            })
+        // init & api key
+        saveApiKey () {
+            if (!this.apiKeyInput) return
+            localStorage.setItem('tornApiKey', this.apiKeyInput)
+            this.apiKey = this.apiKeyInput
+            this.apiKeyInput = ''
+            this.setupApiClient()
+            this.fetchRankedWars().then(() => this.applyInitialQueryParams())
+        },
 
-            const netProfit = profit - costs;
-            const totalHits = totalWarHits + totalOutsideHits;
+        setupApiClient () {
+            this.apiClient = newTornApiClient(this.apiKey, fetch, 'https://api.torn.com/v2')
+        },
 
-            const warHitsPoolGross = totalHits >= 1 ? (totalWarHits / totalHits * netProfit) : 0;
-            const warHitsPool = warHitsPoolGross * (1 - (warHitTax / 100));
-
-            const outsideHitsPoolGross = totalHits >= 1 ? (totalOutsideHits / totalHits * netProfit) : 0;
-            const outsideHitsPool = outsideHitsPoolGross * (1 - (outsideHitTax / 100));
-
-            // Store summary stats in model:
-            this.totalTax = (warHitsPool * (warHitTax / 100)) + (outsideHitsPool * (outsideHitTax / 100));
-            this.payPerOutsideHit = totalOutsideHits > 0 ? (outsideHitsPool / totalOutsideHits) : 0;
-            this.payPerWarHit = totalWarHits > 0 ? (warHitsPool / totalWarHits) : 0;
-
-            // Apportion payouts
-            this.report = hitsByPlayer.map(p => {
-                let warHits = p.warHits?.length || 0;
-                let outsideHits = p.outsideHits?.length || 0;
-                return {
-                    id: p.id,
-                    name: p.name,
-                    warHits,
-                    outsideHits,
-                    payout: Math.round((warHits * this.payPerWarHit) + (outsideHits * this.payPerOutsideHit)),
+        onSelectedWarChange (newId) {
+            if (newId === '' || newId == null) return
+            const id = Number(newId)
+            if (!isNaN(id)) {
+                const war = this.rankedWars.find(w => w.id === id)
+                if (war) {
+                    this.startOverrideEpoch = war.start
+                    this.endOverrideEpoch = war.end
+                } else {
+                    this.startOverrideEpoch = null
+                    this.endOverrideEpoch = null
                 }
-            })
+            } else {
+                this.startOverrideEpoch = null
+                this.endOverrideEpoch = null
+            }
         },
 
-        exportReportAsCSV() {
-            if (!this.report.length) return;
-
-            const headers = ['Player', 'War Hits', 'Outside Hits', 'Payout ($)'];
-            const rows = this.report.map(r =>
-                [`"${r.name}"`, r.warHits, r.outsideHits, r.payout].join(',')
-            );
-
-            const csvContent = [headers.join(','), ...rows].join('\n');
-            this.downloadFile('payroll_summary.csv', csvContent, 'text/csv');
+        init () {
+            this.apiKey = localStorage.getItem('tornApiKey')
+            if (this.apiKey) {
+                this.setupApiClient()
+                this.fetchRankedWars().then(() => this.applyInitialQueryParams())
+            }
+            this.$watch('selectedWarId', (newId) => { this.onSelectedWarChange(newId) })
         },
-
-        exportReportAsText() {
-            if (!this.report.length) return;
-
-            const lines = this.report.map(r =>
-                `${r.name}: ${r.warHits} war hits, ${r.outsideHits} outside hits, $${r.payout.toLocaleString()}`
-            );
-
-            const content = lines.join('\n');
-            this.downloadFile('payroll_summary.txt', content, 'text/plain');
-        },
-
-        downloadFile(filename, content, mimeType) {
-            const blob = new Blob([content], {type: mimeType});
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = filename;
-            a.click();
-            URL.revokeObjectURL(url);
-        }
-    };
+    }
 }
