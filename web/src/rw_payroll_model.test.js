@@ -175,6 +175,18 @@ describe('payrollModel (new)', () => {
             global.setTimeout = (fn) => fn()
         })
 
+        it('navigates to index.html when at step 1', () => {
+            m.step = 1
+            const original = window.location.href
+            delete window.location
+            window.location = { href: '' }
+
+            m.prevStep()
+
+            expect(window.location.href).toBe('./index.html')
+            window.location = { href: original }
+        })
+
         it('preserves selectedWarId when navigating back from step 2 to step 1', () => {
             // Setup: simulate user has selected a war and moved to step 2
             m.selectedWarId = '12345'
