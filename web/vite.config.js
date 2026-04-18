@@ -9,6 +9,7 @@ export default defineConfig({
         main: 'index.html',
         rw_matcher: 'rw_matcher.html',
         rw_payroll: 'rw_payroll.html',
+        rw_lead: 'rw_lead.html',
       }
     }
   },

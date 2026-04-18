@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en" class="bg-background">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ranked War Lead Calculator</title>
+    <link rel="stylesheet" href="./src/style.css" />
+</head>
+<body class="min-h-screen p-6 pb-24 text-textPrimary bg-background"
+      x-data="leadModel()"
+      x-init="init()">
+
+<div class="max-w-4xl mx-auto bg-surface p-6 rounded-xl shadow-md">
+    <h1 class="text-2xl font-bold mb-4">Ranked War Lead Calculator</h1>
+
+    <!-- Step 1: Select War + Configure -->
+    <template x-if="step === 1">
+        <div class="space-y-6">
+
+            <!-- API Key -->
+            <template x-if="!apiKey">
+                <div>
+                    <label class="block mb-2 font-medium">Torn API Key</label>
+                    <input x-model="apiKeyInput" type="text" class="input-compact mb-3" placeholder="Paste your Torn API key here" />
+                    <button @click="saveApiKey" :disabled="!apiKeyInput" class="btn-compact bg-accent text-white hover:bg-accentHover disabled:opacity-50">Save API Key</button>
+                </div>
+            </template>
+
+            <!-- War picker -->
+            <template x-if="apiKey && ongoingWars.length">
+                <div>
+                    <div class="text-sm text-textSecondary">War vs</div>
+                    <div class="text-lg font-semibold" x-text="theirFaction?.name || 'Unknown'"></div>
+                </div>
+            </template>
+
+            <template x-if="apiKey && !isLoading && !ongoingWars.length && !error">
+                <div class="text-sm text-textSecondary">No ongoing ranked wars found.</div>
+            </template>
+
+            <!-- War details -->
+            <template x-if="selectedWar">
+                <div class="space-y-4">
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <div class="p-4 border border-border rounded-lg">
+                            <div class="text-sm text-textSecondary mb-1">Our Score</div>
+                            <div class="text-2xl font-bold" x-text="fmtScore(ourFaction?.score)"></div>
+                            <div class="text-sm text-textSecondary" x-text="ourFaction?.name"></div>
+                        </div>
+                        <div class="p-4 border border-border rounded-lg">
+                            <div class="text-sm text-textSecondary mb-1">Their Score</div>
+                            <div class="text-2xl font-bold" x-text="fmtScore(theirFaction?.score)"></div>
+                            <div class="text-sm text-textSecondary" x-text="theirFaction?.name"></div>
+                        </div>
+                    </div>
+
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <div>
+                            <div class="text-sm text-textSecondary">Current Target</div>
+                            <div class="text-lg font-semibold" x-text="fmtScore(selectedWar.target)"></div>
+                        </div>
+                        <div>
+                            <div class="text-sm text-textSecondary">War Started</div>
+                            <div class="text-lg font-semibold" x-text="warStartFormatted"></div>
+                        </div>
+                    </div>
+
+                    <!-- Deadline input -->
+                    <div>
+                        <label class="block mb-1 font-medium">Deadline (TCT)</label>
+                        <p class="text-sm text-textSecondary mb-2">Default: 12 hours before next Tuesday enrollment</p>
+                        <input type="datetime-local" x-model="deadlineStr" class="input-compact w-full md:w-auto" />
+                    </div>
+                </div>
+            </template>
+
+            <template x-if="isLoading">
+                <div class="text-sm text-textSecondary">
+                    <span class="animate-spin inline-block w-4 h-4 border-2 border-border border-t-transparent rounded-full mr-2"></span>
+                    Fetching ranked wars...
+                </div>
+            </template>
+
+            <template x-if="error">
+                <div class="mt-2 p-3 rounded border border-dangerText bg-dangerBg text-dangerText text-sm" x-text="error"></div>
+            </template>
+        </div>
+    </template>
+
+    <!-- Step 2: Results -->
+    <template x-if="step === 2">
+        <div class="space-y-6">
+            <div class="grid md:grid-cols-2 gap-4">
+                <div class="p-4 border border-border rounded-lg">
+                    <div class="text-sm text-textSecondary mb-1">Your Score</div>
+                    <div class="text-2xl font-bold" x-text="fmtScore(ourFaction?.score)"></div>
+                </div>
+                <div class="p-4 border border-border rounded-lg">
+                    <div class="text-sm text-textSecondary mb-1">Target at Deadline</div>
+                    <div class="text-2xl font-bold" x-text="fmtScore(targetAtDeadline)"></div>
+                </div>
+            </div>
+
+            <!-- Result message -->
+            <template x-if="canCoast">
+                <div class="p-4 rounded border border-successText bg-successBg text-successText">
+                    <div class="font-semibold text-lg mb-1">You can stop hitting.</div>
+                    <div class="text-sm">Your score already exceeds what the target will be at the deadline.</div>
+                    <template x-if="coastTimeFormatted">
+                        <div class="text-sm mt-2">The target will decay to your current score at: <strong x-text="coastTimeFormatted"></strong></div>
+                    </template>
+                </div>
+            </template>
+
+            <template x-if="!canCoast">
+                <div class="p-4 rounded border border-warningText bg-warningBg text-warningText">
+                    <div class="font-semibold text-lg mb-1">You need more points.</div>
+                    <div class="text-sm">
+                        You need <strong x-text="fmtScore(pointsNeeded)"></strong> more points for the target to decay below your score by the deadline.
+                    </div>
+                    <template x-if="coastTimeFormatted">
+                        <div class="text-sm mt-2">If you stop now, the target reaches your score at: <strong x-text="coastTimeFormatted"></strong></div>
+                    </template>
+                    <template x-if="!coastTimeFormatted">
+                        <div class="text-sm mt-2">Your current score is too low for the target to ever decay to it within the war's maximum duration.</div>
+                    </template>
+                </div>
+            </template>
+
+            <!-- Summary table -->
+            <div class="text-sm grid gap-y-1" style="grid-template-columns: max-content auto; column-gap: 1ch;">
+                <div class="text-textSecondary">Original Target:</div>
+                <div class="font-medium" x-text="fmtScore(originalTarget)"></div>
+
+                <div class="text-textSecondary">Current Target:</div>
+                <div class="font-medium" x-text="fmtScore(selectedWar?.target)"></div>
+
+                <div class="text-textSecondary">Target at Deadline:</div>
+                <div class="font-medium" x-text="fmtScore(targetAtDeadline)"></div>
+
+                <div class="text-textSecondary">Our Score:</div>
+                <div class="font-medium" x-text="fmtScore(ourFaction?.score)"></div>
+
+                <div class="text-textSecondary">Their Score:</div>
+                <div class="font-medium" x-text="fmtScore(theirFaction?.score)"></div>
+
+                <div class="text-textSecondary">Points Still Needed:</div>
+                <div class="font-medium" x-text="fmtScore(pointsNeeded)"></div>
+            </div>
+        </div>
+    </template>
+
+</div>
+
+<script type="module">
+    import Alpine from 'alpinejs'
+    import { leadModel } from './src/rw_lead_model.js'
+    import { mountWizardFooter } from './src/wizard_nav.js'
+
+    Alpine.data('leadModel', leadModel)
+    mountWizardFooter(2)
+    Alpine.start()
+</script>
+</body>
+</html>

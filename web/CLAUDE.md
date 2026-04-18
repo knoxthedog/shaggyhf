@@ -28,6 +28,7 @@ npx vitest run     # Run tests once (CI mode)
 | `index.html` | Landing page, API key storage, tool navigation | `apiKeyModel()` from `src/api_key_model.js` |
 | `rw_matcher.html` | Ranked War Matchmaker (3-step wizard) | `newRWMatcherModel()` from `src/rw_matcher_model.js` |
 | `rw_payroll.html` | Ranked War Payroll Calculator (3-step wizard) | `payrollModel()` from `src/rw_payroll_model.js` |
+| `rw_lead.html` | Ranked War Lead Calculator (2-step wizard) | `leadModel()` from `src/rw_lead_model.js` |
 
 ## Module Map
 
@@ -39,6 +40,8 @@ src/
 ├── torn_api.js              # Torn.com v2 API client + hit classification
 ├── datetime_model.js        # Alpine component for datetime-local inputs
 ├── wizard_nav.js            # Shared wizard footer (Back/dots/Next)
+├── war_score.js             # Ranked war target decay formulas
+├── rw_lead_model.js         # Lead calculator page Alpine model
 ├── rw_matcher_model.js      # Matcher page Alpine model
 ├── rw_payroll_model.js      # Payroll page Alpine model
 └── style.css                # Tailwind base + custom CSS variables
@@ -50,6 +53,8 @@ src/
 - `target_matcher.js` → `spy_parser.js`
 - `rw_matcher_model.js` → `spy_parser.js`, `target_matcher.js`
 - `rw_payroll_model.js` → `torn_api.js`
+- `rw_lead_model.js` → `torn_api.js`, `war_score.js`, `datetime_model.js`
+- `war_score.js` → (none)
 - `datetime_model.js` → (none)
 - `wizard_nav.js` → (none)
 - `api_key_model.js` → (none)
@@ -86,7 +91,7 @@ Models are registered in the page's `<script type="module">` block, either via `
 
 ### Wizard Pages
 
-Wizard pages use a 3-step pattern with `step`, `prevStep()`, `nextStep()`, and `canProceed()` on the model. The shared wizard footer is mounted via `mountWizardFooter()` from `src/wizard_nav.js` — call it **before** `Alpine.start()`.
+Wizard pages use a step-based pattern with `step`, `prevStep()`, `nextStep()`, and `canProceed()` on the model. The shared wizard footer is mounted via `mountWizardFooter(steps)` from `src/wizard_nav.js` — call it **before** `Alpine.start()`, passing the number of steps explicitly.
 
 `prevStep()` at step 1 navigates back to `./index.html` — this is a shared contract across all wizard models.
 
@@ -129,7 +134,7 @@ Tailwind scans `./src/**/*.{js,html}` and `./*.html` for class names. When writi
        import { mountWizardFooter } from './src/wizard_nav.js'
 
        Alpine.data('myModel', myModel)
-       mountWizardFooter()
+       mountWizardFooter(3)
        Alpine.start()
    </script>
    </body>
